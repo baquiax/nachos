@@ -1,12 +1,15 @@
 package nachos.threads;
 
 import nachos.machine.*;
+import java.util.LinkedList;
 
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
  * until a certain time.
  */
 public class Alarm {
+    public static LinkedList alarmWaitList=new LinkedList<AlarmWait>();
+
     /**
      * Allocate a new Alarm. Set the machine's timer interrupt handler to this
      * alarm's callback.
@@ -15,9 +18,9 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
-	Machine.timer().setInterruptHandler(new Runnable() {
-		public void run() { timerInterrupt(); }
-	    });
+    Machine.timer().setInterruptHandler(new Runnable() {
+        public void run() { timerInterrupt(); }
+        });
     }
 
     /**
@@ -27,7 +30,16 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-	KThread.currentThread().yield();
+        boolean intStatus = Machine.interrupt().disable();
+        long currentTime = Machine.timer().getTime();
+        AlarmWait waitingThread = (AlarmWait)alarmWaitList.peek();
+        while (waitingThread != null && currentTime >= waitingThread.getWakeTime()) {
+            alarmWaitList.poll();
+            waitingThread.thread.ready();
+            waitingThread = (AlarmWait)alarmWaitList.peek();
+        }
+        Machine.interrupt().restore(intStatus);
+        KThread.currentThread().yield();    
     }
 
     /**
@@ -40,14 +52,37 @@ public class Alarm {
      * (current time) >= (WaitUntil called time)+(x)
      * </blockquote>
      *
-     * @param	x	the minimum number of clock ticks to wait.
+     * @param   x   the minimum number of clock ticks to wait.
      *
-     * @see	nachos.machine.Timer#getTime()
+     * @see nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-	// for now, cheat just to get something working (busy waiting is bad)
-	long wakeTime = Machine.timer().getTime() + x;
-	while (wakeTime > Machine.timer().getTime())
-	    KThread.yield();
+    // for now, cheat just to get something working (busy waiting is bad)
+    if (x > 0) {
+           long time = Machine.timer().getTime() + x;
+           boolean intStatus = Machine.interrupt().disable();
+           AlarmWait e = new AlarmWait(time , KThread.currentThread());
+           alarmWaitList.offer(e); //guardar con offer
+           KThread.sleep();    //elimina busy waiting
+           Machine.interrupt().restore(intStatus);
+       } else return;
+   }
+}
+
+class AlarmWait {
+    long wakeTime;
+    KThread thread;
+
+    public AlarmWait(long wakeTime, KThread thread) {
+        this.wakeTime=wakeTime;
+        this.thread=thread;
+    }
+
+    public long getWakeTime() {
+        return wakeTime;
+    }
+
+    public KThread getThread() {
+        return thread;
     }
 }
