@@ -414,22 +414,35 @@ public class KThread {
      */
     public static void selfTest() {
         Lib.debug(dbgJoin, "Enter KThread.selfTest");
+        boolean testJoinAndWaitUntil = false;
+        boolean testCommunication = true;
 
-        //new KThread(new PingTest(1)).setName("forked thread").fork();
-        //new PingTest(0).run();
+        if (testJoinAndWaitUntil) {
+            //new KThread(new PingTest(1)).setName("forked thread").fork();
+            //new PingTest(0).run();
 
-        KThread kt1 = new KThread(new JoinAndWaitUntilTest(1, null));
-        kt1.setName("KT1");
-        kt1.fork();
+            KThread kt1 = new KThread(new JoinAndWaitUntilTest(1, null));
+            kt1.setName("KT1");
+            kt1.fork();
 
-        //KT2 will do a join() to KT1.
-        KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
-        kt1.setName("KT1");
-        kt2.fork();
+            //KT2 will do a join() to KT1.
+            KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
+            kt1.setName("KT1");
+            kt2.fork();
 
-        KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, null));
-        kt3.setName("KT3");
-        kt3.fork();
+            KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, null));
+            kt3.setName("KT3");
+            kt3.fork();
+        } else if(testCommunication) {
+            Communicator c = new Communicator();
+            KThread speaker = new KThread(new SpeakerTest(999, c));
+            speaker.setName("Speaker");
+            speaker.fork();
+
+            KThread listener = new KThread(new ListenerTest(c));
+            listener.setName("Listener");
+            listener.fork();
+        }
     }
 
     public static final char dbgThread = 't';
@@ -476,6 +489,38 @@ public class KThread {
     /*
      * Classes for test purpose.
      */
+
+    private static class ListenerTest implements Runnable {
+        private Communicator communicator;
+        private ListenerTest(Communicator c) {
+            this.communicator = c;
+        }
+
+        @Override
+        public void run() {
+            Lib.debug(dbgCommunication, "Init to listen!");
+            int messageRecived = this.communicator.listen();
+            Lib.debug(dbgCommunication, "I have received the message: \"" + messageRecived + "\"");
+        }
+    }
+
+    private static class SpeakerTest implements Runnable {
+        private Communicator communicator;
+        private int word;
+
+        public SpeakerTest(int wordToSend, Communicator c) {
+            this.communicator = c;
+            this.word = wordToSend;
+        }
+
+        @Override
+        public void run() {
+            Lib.debug(dbgCommunication, "Trying to send a word:" + this.word);
+            this.communicator.speak(this.word);
+            Lib.debug(dbgCommunication, "\"" + this.word + "\" has been sent!" );
+        }
+    }
+
     private static class JoinAndWaitUntilTest implements Runnable {
         int which;
         KThread kThreadToJoin;            
