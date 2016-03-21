@@ -418,23 +418,24 @@ public class KThread {
         //new KThread(new PingTest(1)).setName("forked thread").fork();
         //new PingTest(0).run();
 
-        KThread kt1 = new KThread(new TestItem(1, null));
+        KThread kt1 = new KThread(new JoinAndWaitUntilTest(1, null));
         kt1.setName("KT1");
         kt1.fork();
 
         //KT2 will do a join() to KT1.
-        KThread kt2 = new KThread(new TestItem(2, kt1));
+        KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
         kt1.setName("KT1");
         kt2.fork();
 
-        KThread kt3 = new KThread(new TestItem(3, null));
+        KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, null));
         kt3.setName("KT3");
         kt3.fork();
     }
 
-    private static final char dbgThread = 't';
-    private static final char dbgWaitUntil = 'w';  
-    private static final char dbgJoin = 'j';
+    public static final char dbgThread = 't';
+    public static final char dbgWaitUntil = 'w';  
+    public static final char dbgJoin = 'j';
+    public static final char dbgCommunication = 'c';
 
     /**
      * Additional state used by schedulers.
@@ -473,13 +474,13 @@ public class KThread {
     private static KThread idleThread = null;    
 
     /*
-     * Class created for test purpose. 
+     * Classes for test purpose.
      */
-    private static class TestItem implements Runnable {
+    private static class JoinAndWaitUntilTest implements Runnable {
         int which;
         KThread kThreadToJoin;            
 
-        TestItem(int which, KThread kThreadToJoin) {            
+        JoinAndWaitUntilTest(int which, KThread kThreadToJoin) {            
             this.which = which;
             this.kThreadToJoin = kThreadToJoin;
         }
@@ -492,6 +493,15 @@ public class KThread {
                 }
                     
                 if((which == 3) && (i == 0)){
+                    int ms = 10;
+                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": now is waiting for " + ms + " ms. ");
+                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": current time: " + Machine.timer().getTime());
+                    Alarm alarm = new Alarm();
+                    alarm.waitUntil(ms);
+                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": Thread has been awakened: " + Machine.timer().getTime());
+                }
+
+                if(i == 5){
                     int ms = 10;
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": now is waiting for " + ms + " ms. ");
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": current time: " + Machine.timer().getTime());
