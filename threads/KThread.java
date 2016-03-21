@@ -50,6 +50,9 @@ public class KThread {
 	    readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
 	    readyQueue.acquire(this);	    
 
+        joinQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+        joinQueue.acquire(this);
+
 	    currentThread = this;
 	    tcb = TCB.currentTCB();
 	    name = "main";
@@ -191,8 +194,12 @@ public class KThread {
 	Lib.assertTrue(toBeDestroyed == null);
 	toBeDestroyed = currentThread;
 
-
 	currentThread.status = statusFinished;
+
+    KThread thread;
+    while((thread=joinQueue.nextThread())!=null) {
+        thread.ready();
+    }
 	
 	sleep();
     }
@@ -273,10 +280,18 @@ public class KThread {
      * thread.
      */
     public void join() {
-	Lib.debug(dbgThread, "Joining to thread: " + toString());
+	   Lib.debug(dbgThread, "Joining to thread: " + toString());
 
-	Lib.assertTrue(this != currentThread);
+	   Lib.assertTrue(this != currentThread);
 
+        boolean intStatus = Machine.interrupt().disable();
+    
+        if (currentThread.status != statusFinished) {
+            this.joinQueue.waitForAccess(currentThread);
+            currentThread.sleep();
+        }
+
+        Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -381,6 +396,35 @@ public class KThread {
 	Lib.assertTrue(this == currentThread);
     }
 
+    private static class TestItem1 implements Runnable {
+    int which;
+    KThread ktread;            
+
+    TestItem1(int which, KThread ktread) {
+        this.which = which;
+        this.ktread = ktread;
+    }
+
+    public void run() {
+        for (int i=0; i<10; i++) {
+            if((i == 3) && (ktread != null))
+                ktread.join();
+            if((which == 3) && (i == 0)){              
+                Lib.debug(pruebaJoin, "*** tiempo actual antes de esperar = " + 2000+ " contador "+ i);
+                Alarm alarma = new Alarm();
+                alarma.waitUntil(2000);
+                Lib.debug(pruebaJoin, "*** tiempo actual antes de esperar = " + 3000 + " contador "+ i);
+            }
+            if((which == 3) && (i == 1)){
+                long tiempo = Machine.timer().getTime();
+                Lib.debug(pruebaJoin, "*** tiempo actual despues de esperar = " + tiempo + " contador "+ i);         
+            }
+            Lib.debug(pruebaJoin, "*** thread numero = " + which + " contador "+ i);
+            currentThread.yield();
+        }
+    }
+    }
+
     private static class PingTest implements Runnable {
 	PingTest(int which) {
 	    this.which = which;
@@ -408,6 +452,7 @@ public class KThread {
     }
 
     private static final char dbgThread = 't';
+    private static final char pruebaJoin = 'j';
 
     /**
      * Additional state used by schedulers.
@@ -444,4 +489,5 @@ public class KThread {
     private static KThread currentThread = null;
     private static KThread toBeDestroyed = null;
     private static KThread idleThread = null;
+    private static ThreadQueue joinQueue = null;
 }
