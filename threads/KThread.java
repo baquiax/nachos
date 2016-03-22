@@ -435,13 +435,13 @@ public class KThread {
             kt3.fork();
         } else if(testCommunication) {
             Communicator c = new Communicator();
+            KThread listener = new KThread(new ListenerTest(c));
+            listener.setName("Listener 1");
+            listener.fork();            
             KThread speaker = new KThread(new SpeakerTest(999, c));
             speaker.setName("Speaker");
             speaker.fork();
-
-            KThread listener = new KThread(new ListenerTest(c));
-            listener.setName("Listener");
-            listener.fork();
+            new KThread(new NOP()).fork();            
         }
     }
 
@@ -489,6 +489,20 @@ public class KThread {
     /*
      * Classes for test purpose.
      */
+    private static class NOP implements Runnable {
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(5000);
+                Lib.debug(dbgCommunication, "I finish to count");
+                currentThread.yield();
+                Thread.sleep(1000);    
+            } catch (Exception e) {
+
+            }
+            
+        }
+    }
 
     private static class ListenerTest implements Runnable {
         private Communicator communicator;
@@ -497,10 +511,10 @@ public class KThread {
         }
 
         @Override
-        public void run() {
-            Lib.debug(dbgCommunication, "Init to listen!");
+        public void run() {                    
+            Lib.debug(dbgCommunication, "LISTENER: Init to listen!");            
             int messageRecived = this.communicator.listen();
-            Lib.debug(dbgCommunication, "I have received the message: \"" + messageRecived + "\"");
+            Lib.debug(dbgCommunication, "LISTENER: I have received the message: \"" + messageRecived + "\"");
         }
     }
 
@@ -515,9 +529,12 @@ public class KThread {
 
         @Override
         public void run() {
-            Lib.debug(dbgCommunication, "Trying to send a word:" + this.word);
+            Lib.debug(dbgCommunication, "SPEAKER: Speaker wait by: 1000 ms");
+            Alarm alarm = new Alarm();
+            alarm.waitUntil(1000);
+            Lib.debug(dbgCommunication, "SPEAKER: Trying to send a word: " + this.word);
             this.communicator.speak(this.word);
-            Lib.debug(dbgCommunication, "\"" + this.word + "\" has been sent!" );
+            Lib.debug(dbgCommunication, "SPEAKER: \"" + this.word + "\" has been sent!" );
         }
     }
 
