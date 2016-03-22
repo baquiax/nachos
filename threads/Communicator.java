@@ -15,16 +15,16 @@ public class Communicator {
 
 	private int speakers;
 	private int listeners;	
-	Condition speakerCondition;
-	Condition listenerCondition;
+	Condition2 speakerCondition;
+	Condition2 listenerCondition;
 
 	/**
 	 * Allocate a new communicator.
 	 */
 	public Communicator() {
 		this.lock = new Lock();
-		speakerCondition = new Condition(this.lock);
-		listenerCondition = new Condition(this.lock);
+		speakerCondition = new Condition2(this.lock);
+		listenerCondition = new Condition2(this.lock);
 		this.speakers = 0;
 		this.listeners = 0;		
 	}
