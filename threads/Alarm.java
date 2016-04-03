@@ -59,11 +59,11 @@ public class Alarm {
 	 */
 	public void waitUntil(long x) {
 	// for now, cheat just to get something working (busy waiting is bad)
-		if (x > 0) {
+		if (x > 0) {			
+			boolean intStatus = Machine.interrupt().disable();
 			long time = Machine.timer().getTime() + x;
-			boolean intStatus = Machine.interrupt().disable();			
-			AlarmWait e = new AlarmWait(time , KThread.currentThread());
-			alarmWaitList.offer(e);
+			AlarmWait aw = new AlarmWait(time , KThread.currentThread());
+			alarmWaitList.offer(aw);
 			KThread.sleep();
 			Machine.interrupt().restore(intStatus);
 		} else return;

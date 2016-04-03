@@ -66,7 +66,7 @@ public class Communicator {
 			this.speakerCondition.sleep();
 		}
 		this.speakers--;
-		Lib.debug(KThread.dbgCommunication, "Message receied: " + this.word);	
+		Lib.debug(KThread.dbgCommunication, "Message received: " + this.word);	
 		this.lock.release();
 		return this.word;
 	}
