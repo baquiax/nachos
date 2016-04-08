@@ -260,9 +260,9 @@ public class PriorityScheduler extends Scheduler {
 		public void acquire(PriorityQueue waitQueue) {
 			// implement me
 			Lib.assertTrue(Machine.interrupt().disabled());
-			Lib.assertTrue(waitQueue.isEmpty());
+			//Lib.assertTrue(waitQueue.isEmpty());
 
-			waitQueue.acquire(waitQueue);
+			//waitQueue.acquire(waitQueue);
 		}	
 
 		/** The thread with which this object is associated. */	   
