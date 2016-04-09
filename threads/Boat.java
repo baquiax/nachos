@@ -23,14 +23,14 @@ public class Boat {
 		BoatGrader b = new BoatGrader();
 
 
-		System.out.println("\n ***Testing Boats with only 2 children***");
-		begin(0, 2, b);
+//		System.out.println("\n ***Testing Boats with only 2 children***");
+//		begin(0, 2, b);
 
-//	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-//  	begin(1, 2, b);
+	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
+  	begin(1, 2, b);
 
-//  	System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-//  	begin(3, 3, b);
+	//System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
+	//7begin(3, 3, b);
 	}
 
 	public static void begin( int adults, int children, BoatGrader b ) {
@@ -47,12 +47,12 @@ public class Boat {
 	// Create threads here. See section 3.4 of the Nachos for Java
 	// Walkthrough linked from the projects page.
 
-		Runnable r = new Runnable() {
+/*		Runnable r = new Runnable() {
 			public void run() {
 				SampleItinerary();
 			}
 		};
-
+*/
 		Runnable tChild = new Runnable() {
 			public void run() {
 				int location = oahu;
@@ -73,24 +73,33 @@ public class Boat {
 			t.fork();
 		}
 
-		for (int i=0;i<children;i++) {
+		for (int i=0;i<adults;i++) {
 			KThread t = new KThread(tAdult);
 			t.setName("Adult Boat Thread:" + (i+1));
 			t.fork();
 		}
 
-		while(true) {
-			int received=communicator.listen();
+		Runnable tMain = new Runnable() {
+			public void run() {
+				while(true) {
+					int received=communicator.listen();
 
-			System.out.println("Received: " + received);
-			if (received==children+adults) {
-				break;
+					System.out.println("Received: " + received);
+					if (received==children+adults) {
+						break;
+					}
+				}
 			}
-		}
+		};
 
+		KThread tatito = new KThread(tMain);
+		tatito.setName("Main Boat Thread");
+		tatito.fork();
+/*
 		KThread t = new KThread(r);
 		t.setName("Sample Boat Thread");
 		t.fork();
+*/
 	}
 
 	static void AdultItinerary(int location) {
@@ -101,13 +110,20 @@ public class Boat {
 	   indicates that an adult has rowed the boat across to Molokai
 	*/
 	   lock.acquire();
-	   
+
 	   while (true) {
+	   		System.out.println(boatLocation + " " + location);
+	   		System.out.println(passenger + " " + childrenOahu);
 	   		if (location == oahu) {
-	   			while (passenger>0 || childrenOahu>1 || boatLocation != oahu) {
+				Lib.debug('d', "Antes while");
+	   			while (passenger>1 || childrenOahu>1 || boatLocation != oahu) {
 	   				waitOahu.sleep();
+	   				System.out.println(boatLocation + " " + location);
+	   				System.out.println(passenger + " " + childrenOahu);
+	   				System.out.println(passenger>0 || childrenOahu>1 || boatLocation != oahu);
 	   			}
 
+	   			Lib.debug('d', "Salir while");
 	   			bg.AdultRowToMolokai();
 	   			adultsOahu--;
 
@@ -136,11 +152,6 @@ public class Boat {
 		lock.acquire();
 
 		while(true) {
-			if (location == 9999) {
-               Lib.assertTrue(false);
-               break;
-            }
-
 			if (location==oahu) {
 				while(boatLocation!=oahu || passenger==2 || (adultsOahu>0 && childrenOahu==1)) {
 					waitOahu.sleep();
@@ -148,7 +159,7 @@ public class Boat {
 
 				waitOahu.wakeAll();
 
-				if (adultsOahu==0 && childrenOahu==1) {
+				if (adultsOahu==0 && childrenOahu==2) {
 					childrenOahu--;
 					bg.ChildRideToMolokai();
 
@@ -166,11 +177,15 @@ public class Boat {
 						waitBoatFull.sleep();
 						childrenOahu--;
 						bg.ChildRideToMolokai();
-						passenger-=2;
+						passenger-=1;
 						boatLocation=molokai;
 						childrenMolokai++;
 						communicator.speak(childrenMolokai+adultsMolokai);
+						bg.ChildRowToOahu();
+						boatLocation=oahu;
+						childrenOahu = 1;
 						waitMolokai.wakeAll();
+						waitOahu.wakeAll();
 						waitMolokai.sleep();
 					} else if (passenger==1) {
 						waitBoatFull.sleep();
@@ -195,6 +210,10 @@ public class Boat {
 						waitOahu.sleep();
 					}
 				}
+			} else {
+				//salir del while
+				//Lib.assertTrue(false);
+               	break;
 			}
 		}
 

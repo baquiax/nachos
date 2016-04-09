@@ -408,7 +408,7 @@ public class KThread {
 
         private int which;
     }
-
+    
     /**
      * Tests whether this module is working.
      */
@@ -416,6 +416,7 @@ public class KThread {
         Lib.debug(dbgJoin, "Enter KThread.selfTest");
         boolean testJoinAndWaitUntil = false;
         boolean testCommunication = true;
+        
 
         if (testJoinAndWaitUntil) {
             //new KThread(new PingTest(1)).setName("forked thread").fork();
@@ -425,26 +426,33 @@ public class KThread {
             kt1.setName("KT1");
             kt1.fork();
 
-            new KThread(new NOP()).fork();
+            //new KThread(new NOP()).fork();
 
             //KT2 will do a join() to KT1.
             KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
             kt1.setName("KT2");
             kt2.fork();        
 
-            KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, null));
+            KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, kt2));
             kt3.setName("KT3");
             kt3.fork();
 
             new KThread(new NOP()).fork();
         } else if(testCommunication) {
             Communicator c = new Communicator();
-            KThread listener = new KThread(new ListenerTest(c));
-            listener.setName("Listener 1");
-            listener.fork();            
+            
             KThread speaker = new KThread(new SpeakerTest(45678, c));
             speaker.setName("Speaker");
             speaker.fork();
+            KThread speaker2 = new KThread(new SpeakerTest(5555, c));
+            speaker2.setName("Speaker 2");
+            speaker2.fork();
+            KThread speaker3 = new KThread(new SpeakerTest(22, c));
+            speaker3.setName("Speaker 3");
+            speaker3.fork();
+            KThread listener = new KThread(new ListenerTest(c));
+            listener.setName("Listener 1");
+            listener.fork();            
             new KThread(new NOP()).fork();            
         }
     }
@@ -453,6 +461,7 @@ public class KThread {
     public static final char dbgWaitUntil = 'w';  
     public static final char dbgJoin = 'j';
     public static final char dbgCommunication = 'c';
+    public static final char dbgBoat = 'b';
 
     /**
      * Additional state used by schedulers.
@@ -535,7 +544,7 @@ public class KThread {
         public void run() {
             Lib.debug(dbgCommunication, "SPEAKER: Speaker wait by: 1000 ms");
             Alarm alarm = new Alarm();
-            alarm.waitUntil(1000);
+            //alarm.waitUntil(1000);
             Lib.debug(dbgCommunication, "SPEAKER: Trying to send a word: " + this.word);
             this.communicator.speak(this.word);
             Lib.debug(dbgCommunication, "SPEAKER: \"" + this.word + "\" has been sent!" );
@@ -552,13 +561,13 @@ public class KThread {
         }
 
         public void run() {
-            for (int i=0; i< 10000; i++) {                
+            for (int i=0; i< 30; i++) {
                 if((this.kThreadToJoin != null) && (i == 1)) {
                     //Join current KThread to this.kThreadToJoin.                    
                     this.kThreadToJoin.join();                    
                 }
                     
-                if((which == -1) && (i == 0)){
+                if((which == 1) && (i == 0)){
                     int ms = 10;
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": now is waiting for " + ms + " ms. ");
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": current time: " + Machine.timer().getTime());
