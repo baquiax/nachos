@@ -23,14 +23,14 @@ public class Boat {
 		BoatGrader b = new BoatGrader();
 
 
-//		System.out.println("\n ***Testing Boats with only 2 children***");
-//		begin(0, 2, b);
+//	System.out.println("\n ***Testing Boats with only 2 children***");
+//	begin(0, 2, b);
 
 	System.out.println("\n ***Testing Boats with 2 children, 1 adult***");
-  	begin(1, 2, b);
+	begin(1, 2, b);
 
-	//System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
-	//7begin(3, 3, b);
+//	System.out.println("\n ***Testing Boats with 3 children, 3 adults***");
+//	begin(3, 3, b);
 	}
 
 	public static void begin( int adults, int children, BoatGrader b ) {
@@ -46,13 +46,6 @@ public class Boat {
 
 	// Create threads here. See section 3.4 of the Nachos for Java
 	// Walkthrough linked from the projects page.
-
-/*		Runnable r = new Runnable() {
-			public void run() {
-				SampleItinerary();
-			}
-		};
-*/
 		Runnable tChild = new Runnable() {
 			public void run() {
 				int location = oahu;
@@ -84,7 +77,6 @@ public class Boat {
 				while(true) {
 					int received=communicator.listen();
 
-					System.out.println("Received: " + received);
 					if (received==children+adults) {
 						break;
 					}
@@ -92,14 +84,9 @@ public class Boat {
 			}
 		};
 
-		KThread tatito = new KThread(tMain);
-		tatito.setName("Main Boat Thread");
-		tatito.fork();
-/*
-		KThread t = new KThread(r);
-		t.setName("Sample Boat Thread");
-		t.fork();
-*/
+		KThread main = new KThread(tMain);
+		main.setName("Main Boat Thread");
+		main.fork();
 	}
 
 	static void AdultItinerary(int location) {
@@ -112,25 +99,21 @@ public class Boat {
 	   lock.acquire();
 
 	   while (true) {
-	   		System.out.println(boatLocation + " " + location);
-	   		System.out.println(passenger + " " + childrenOahu);
 	   		if (location == oahu) {
-				Lib.debug('d', "Antes while");
+	   			Lib.debug('d',passenger+" "+childrenOahu+" "+boatLocation+" "+oahu);
 	   			while (passenger>1 || childrenOahu>1 || boatLocation != oahu) {
 	   				waitOahu.sleep();
-	   				System.out.println(boatLocation + " " + location);
-	   				System.out.println(passenger + " " + childrenOahu);
-	   				System.out.println(passenger>0 || childrenOahu>1 || boatLocation != oahu);
 	   			}
 
-	   			Lib.debug('d', "Salir while");
 	   			bg.AdultRowToMolokai();
 	   			adultsOahu--;
 
-	   			boatLocation=molokai;
+	   			boatLocation=oahu;
 	   			adultsMolokai++;
-
-	   			location=molokai;
+	   			childrenMolokai--;
+	   			childrenOahu++;
+	   			location=oahu;
+	   			bg.ChildRowToOahu();
 	   			communicator.speak(adultsMolokai+childrenMolokai);
 
 	   			Lib.assertTrue(childrenMolokai>0);
@@ -160,12 +143,13 @@ public class Boat {
 				waitOahu.wakeAll();
 
 				if (adultsOahu==0 && childrenOahu==2) {
-					childrenOahu--;
+					childrenOahu-=2;
 					bg.ChildRideToMolokai();
+					bg.ChildRowToMolokai();
 
 					boatLocation=molokai;
 					location=molokai;
-					childrenMolokai++;
+					childrenMolokai+=2;
 
 					passenger=0;
 					communicator.speak(childrenMolokai+adultsMolokai);
@@ -177,23 +161,26 @@ public class Boat {
 						waitBoatFull.sleep();
 						childrenOahu--;
 						bg.ChildRideToMolokai();
-						passenger-=1;
+						passenger--;
 						boatLocation=molokai;
 						childrenMolokai++;
 						communicator.speak(childrenMolokai+adultsMolokai);
 						bg.ChildRowToOahu();
 						boatLocation=oahu;
-						childrenOahu = 1;
-						waitMolokai.wakeAll();
+						childrenOahu++;
 						waitOahu.wakeAll();
 						waitMolokai.sleep();
-					} else if (passenger==1) {
+					} else if ((passenger==1 || adultsOahu>0) && childrenMolokai>0) {
 						waitBoatFull.sleep();
-						childrenOahu--;
-						bg.ChildRowToMolokai();
-						location=molokai;
-						childrenMolokai++;
+						adultsOahu--;
+						bg.AdultRowToMolokai();
+						location=oahu;
+						adultsMolokai++;
+						childrenMolokai--;
+						childrenOahu++;
+						bg.ChildRowToOahu();
 						waitBoatFull.wake();
+						waitOahu.wake();
 						waitMolokai.sleep();
 					} else if (location == molokai) {
 						while (boatLocation!=molokai) {
