@@ -63,7 +63,7 @@ public class Lock {
 	
 	Machine.interrupt().restore(intStatus);
     }
-
+    
     /**
      * Test if the current thread holds this lock.
      *

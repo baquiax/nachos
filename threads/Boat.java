@@ -1,5 +1,6 @@
 package nachos.threads;
 import nachos.ag.BoatGrader;
+import nachos.machine.*;
 
 public class Boat {
 	static BoatGrader bg;
@@ -99,13 +100,47 @@ public class Boat {
 	       bg.AdultRowToMolokai();
 	   indicates that an adult has rowed the boat across to Molokai
 	*/
+	   lock.acquire();
+	   
+	   while (true) {
+	   		if (location == oahu) {
+	   			while (passenger>0 || childrenOahu>1 || boatLocation != oahu) {
+	   				waitOahu.sleep();
+	   			}
 
+	   			bg.AdultRowToMolokai();
+	   			adultsOahu--;
+
+	   			boatLocation=molokai;
+	   			adultsMolokai++;
+
+	   			location=molokai;
+	   			communicator.speak(adultsMolokai+childrenMolokai);
+
+	   			Lib.assertTrue(childrenMolokai>0);
+
+	   			waitMolokai.wakeAll();
+	   			waitMolokai.sleep();
+	   		} else if (location==molokai) {
+	   			waitMolokai.sleep();
+	   		} else {
+	   			Lib.assertTrue(false);
+	   			break;
+	   		}
+	   }
+
+	   lock.release();
 	}
 
 	static void ChildItinerary(int location) {
 		lock.acquire();
 
 		while(true) {
+			if (location == 9999) {
+               Lib.assertTrue(false);
+               break;
+            }
+
 			if (location==oahu) {
 				while(boatLocation!=oahu || passenger==2 || (adultsOahu>0 && childrenOahu==1)) {
 					waitOahu.sleep();
@@ -163,7 +198,7 @@ public class Boat {
 			}
 		}
 
-		//lock.release();
+		lock.release();
 	}
 
 	static void SampleItinerary() {
