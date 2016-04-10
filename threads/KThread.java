@@ -47,7 +47,7 @@ public class KThread {
             tcb = new TCB();
         }
         else {
-            readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+            readyQueue = ThreadedKernel.scheduler.newThreadQueue(true);
             readyQueue.acquire(this);           
 
             currentThread = this;
@@ -57,7 +57,7 @@ public class KThread {
 
             createIdleThread();
         }
-        this.joinQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+        this.joinQueue = ThreadedKernel.scheduler.newThreadQueue(true);
     }
 
     /**
@@ -115,6 +115,9 @@ public class KThread {
         return (name + " (#" + id + ")");
     }
 
+    public ThreadQueue getJoinQueue() {
+        return this.joinQueue;
+    }
     /**
      * Deterministically and consistently compare this thread to another
      * thread.
@@ -414,8 +417,8 @@ public class KThread {
      */
     public static void selfTest() {
         Lib.debug(dbgJoin, "Enter KThread.selfTest");
-        boolean testJoinAndWaitUntil = false;
-        boolean testCommunication = true;
+        boolean testJoinAndWaitUntil = true;
+        boolean testCommunication = false;
 
         if (testJoinAndWaitUntil) {
             //new KThread(new PingTest(1)).setName("forked thread").fork();
@@ -423,13 +426,11 @@ public class KThread {
 
             KThread kt1 = new KThread(new JoinAndWaitUntilTest(1, null));
             kt1.setName("KT1");
-            kt1.fork();
-
-            new KThread(new NOP()).fork();
+            kt1.fork();        
 
             //KT2 will do a join() to KT1.
             KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
-            kt1.setName("KT2");
+            kt2.setName("KT2");            
             kt2.fork();        
 
             KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, null));
@@ -552,22 +553,13 @@ public class KThread {
         }
 
         public void run() {
-            for (int i=0; i< 10000; i++) {                
+            for (int i=0; i< 10; i++) {                
                 if((this.kThreadToJoin != null) && (i == 1)) {
                     //Join current KThread to this.kThreadToJoin.                    
                     this.kThreadToJoin.join();                    
                 }
                     
-                if((which == -1) && (i == 0)){
-                    int ms = 10;
-                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": now is waiting for " + ms + " ms. ");
-                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": current time: " + Machine.timer().getTime());
-                    Alarm alarm = new Alarm();
-                    alarm.waitUntil(ms);
-                    Lib.debug(dbgWaitUntil, "THREAD #" + which + ": Thread has been awakened: " + Machine.timer().getTime());
-                }
-
-                if(i == -1){
+                if(i == 3 && which == 3){
                     int ms = 10;
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": now is waiting for " + ms + " ms. ");
                     Lib.debug(dbgWaitUntil, "THREAD #" + which + ": current time: " + Machine.timer().getTime());
