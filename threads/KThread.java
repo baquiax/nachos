@@ -417,39 +417,37 @@ public class KThread {
      */
     public static void selfTest() {
         Lib.debug(dbgJoin, "Enter KThread.selfTest");
-<<<<<<< HEAD
         boolean testJoinAndWaitUntil = true;
         boolean testCommunication = false;
-=======
-        boolean testJoinAndWaitUntil = false;
-        boolean testCommunication = true;
-        
->>>>>>> 16ed3b51b5508975205a688ae08eea5663a347d6
 
         if (testJoinAndWaitUntil) {
             //new KThread(new PingTest(1)).setName("forked thread").fork();
             //new PingTest(0).run();
+            PriorityScheduler sched = (PriorityScheduler) ThreadedKernel.scheduler;
+
+            new KThread(new NOP()).fork();
 
             KThread kt1 = new KThread(new JoinAndWaitUntilTest(1, null));
             kt1.setName("KT1");
-<<<<<<< HEAD
             kt1.fork();        
-=======
-            kt1.fork();
 
-            //new KThread(new NOP()).fork();
->>>>>>> 16ed3b51b5508975205a688ae08eea5663a347d6
+            new KThread(new NOP()).fork();
 
             //KT2 will do a join() to KT1.
             KThread kt2 = new KThread(new JoinAndWaitUntilTest(2, kt1));
             kt2.setName("KT2");            
             kt2.fork();        
 
-            KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, kt2));
-            kt3.setName("KT3");
-            kt3.fork();
+            boolean intStatus = Machine.interrupt().disable();
+            sched.setPriority(kt2, 7);            
+            Machine.interrupt().restore(intStatus);
 
             new KThread(new NOP()).fork();
+
+            KThread kt3 = new KThread(new JoinAndWaitUntilTest(3, kt2));
+            kt3.setName("KT3");
+            kt3.fork();            
+        
         } else if(testCommunication) {
             Communicator c = new Communicator();
             
