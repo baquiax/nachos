@@ -7,7 +7,7 @@ NachOS
  - Alexander Baquiax
   
 
-[Ver Repositorio](https://github.com/baquiax/cc7-lab7.git)
+[Ver Repositorio](https://github.com/baquiax/nachos.git)
 
 # Modo de uso
 Acceda a la carpeta **proj1**
