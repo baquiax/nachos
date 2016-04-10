@@ -12,8 +12,7 @@ NachOS
 # Modo de uso
 Acceda a la carpeta **proj1**
 
-`make clean && make`
-`nachos -d jw `
+`make clean && make && nachos -d jw`
 
 ## 
 
