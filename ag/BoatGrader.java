@@ -63,7 +63,3 @@ public class BoatGrader {
 	System.out.println("**Adult arrived on Oahu as a passenger.");
     }
 }
-
-
-
-
