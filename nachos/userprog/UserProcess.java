@@ -3,6 +3,7 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
+import java.util.HashMap;
 
 import java.io.EOFException;
 
@@ -23,7 +24,7 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-		this.fileDescriptorTable = new HashTable<int, OpenFile>();
+		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();
 		//When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
 		this.addFileDescriptor(UserKernel.console.openForReading());
 		this.addFileDescriptor(UserKernel.console.openForWriting());
@@ -358,13 +359,13 @@ public class UserProcess {
 		Lib.debug(dbgProcess, "syscall create with addr:" + fileNamePointer); //It's the virtual string address
 		String fileName = readVirtualMemoryString(fileNamePointer, 255); //Read 256 bytes (maxLength + 1) from <fileNamePointer>		
 		if (fileName == null) { //Invalid fileName
-			Lib.debug(dbgProcess, "create error, invalid name.")
+			Lib.debug(dbgProcess, "create error, invalid name.");
 			return -1;
 		}
 		OpenFile newFile = ThreadedKernel.fileSystem.open(fileName, true);
 		
 		if (newFile == null) { //Creation error
-			Lib.debug(dbgProcess, "create error, file non created.")
+			Lib.debug(dbgProcess, "create error, file non created.");
 			return -1;
 		}
 		
@@ -418,7 +419,8 @@ public class UserProcess {
         switch (syscall) {
             case syscallHalt:
                 return handleHalt();
-
+            case syscallCreate:
+                return handleCreate(a0);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -479,6 +481,6 @@ public class UserProcess {
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
 	
-	private HashMap<int, OpenFile> fileDescriptorTable;
+	private HashMap<Integer, OpenFile> fileDescriptorTable;
 	private int currentFileDescriptor = 0;
 }
