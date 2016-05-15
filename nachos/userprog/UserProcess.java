@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 import java.util.HashMap;
+import java.util.LinkedList;
 
 import java.io.EOFException;
 
@@ -24,10 +25,8 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();
-		//When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
-		this.addFileDescriptor(UserKernel.console.openForReading());
-		this.addFileDescriptor(UserKernel.console.openForWriting());
+		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();            
+        this.prepareFileDescriptors(16);
 		
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
@@ -351,13 +350,42 @@ public class UserProcess {
         return 0;
     }
 
+    private void prepareFileDescriptors(int maxDescriptors) {
+        if (this.availableFileDescriptors != null) return;
+
+        this.availableFileDescriptors = new LinkedList<Integer>();        
+        for (int i = 0; i < maxDescriptors; i++) {
+            this.availableFileDescriptors.add(i);
+        }
+
+        //When any process is started, its file descriptors 0 and 1 must refer to standard input and standard output.
+        this.addFileDescriptor(UserKernel.console.openForReading());
+        this.addFileDescriptor(UserKernel.console.openForWriting());        
+    }
+
+    //This method returns -1 when reached the limit of opened files, otherwise returns <int>.
+    private int addFileDescriptor(OpenFile of) {
+        if (this.availableFileDescriptors.peek() == null) return -1;
+        int fileDescriptor = this.availableFileDescriptors.poll();
+        this.fileDescriptorTable.put(fileDescriptor, of);
+        return fileDescriptor;
+    }
+    
+    private boolean removeFileDescriptor(OpenFile of) {
+        int fileDescriptorIndex = this.availableFileDescriptors.indexOf(of);
+        if (fileDescriptorIndex == -1) return false;
+        this.fileDescriptorTable.remove(fileDescriptorIndex);
+        this.availableFileDescriptors.addLast(fileDescriptorIndex);
+        return true;
+    }
+
 	/**
 	 * Handle the create() system call.
-	 * Return -1 when happened an error.
+	 * Returns -1 when happened an error or returns a fileDescriptor otherwise.
 	 */
 	private int handleCreate(int fileNamePointer) {
-		Lib.debug(dbgProcess, "syscall create with addr:" + fileNamePointer); //It's the virtual string address
-		String fileName = readVirtualMemoryString(fileNamePointer, 255); //Read 256 bytes (maxLength + 1) from <fileNamePointer>		
+		Lib.debug(dbgProcess, "syscall create with addr: " + fileNamePointer); //It's the virtual string address
+		String fileName = readVirtualMemoryString(fileNamePointer, 255); //Read 256 bytes (maxLength + 1) from <fileNamePointer>
 		if (fileName == null) { //Invalid fileName
 			Lib.debug(dbgProcess, "create error, invalid name.");
 			return -1;
@@ -374,6 +402,77 @@ public class UserProcess {
 		 */
 		 return addFileDescriptor(newFile);
 	}
+
+    /**
+     * Handle the open() system call.
+     * Returns -1 when happened an error or returns a fileDescriptor otherwise.
+     */
+    private int handleOpen(int fileNamePointer) {
+        Lib.debug(dbgProcess, "syscall open with fileNamePointer: " + fileNamePointer);
+        String fileName = readVirtualMemoryString(fileNamePointer, 255);
+        if (fileName == null) {
+            Lib.debug(dbgProcess, "Invalid file name.");
+            return -1;
+        }
+
+        OpenFile openedFile = ThreadedKernel.fileSystem.open(fileName, false);
+        
+        if (openedFile == null) {
+            Lib.debug(dbgProcess, "File doesn't exists.");
+            return -1;
+        }
+
+        return this.addFileDescriptor(openedFile);
+    }
+
+    private int handleRead(int fileDescriptor, int destBufferPointer, int numberOfBytes) {
+        Lib.debug(dbgProcess, "syscall read with descriptor: " + fileDescriptor);
+        OpenFile of = this.fileDescriptorTable.get(fileDescriptor);
+        if (of == null) {
+            Lib.debug(dbgProcess, "File doesn't exists.");
+            return -1;
+        }
+        numberOfBytes = Math.min(Math.max(0, numberOfBytes), of.length());
+        byte[] readedBytes = new byte[numberOfBytes];
+        of.read(readedBytes, 0, numberOfBytes);
+        return this.writeVirtualMemory(destBufferPointer, readedBytes);   
+    }
+
+    private int handleWrite(int fileDescriptor, int bufferToWritePointer, int numberOfBytes) {
+        Lib.debug(dbgProcess, "syscall write with descriptor: " + fileDescriptor);
+        OpenFile of = this.fileDescriptorTable.get(fileDescriptor);
+        if (of == null) {
+            Lib.debug(dbgProcess, "File isn't opened.");
+            return -1;
+        }
+        //numberOfBytes = Math.min(Math.max(0, numberOfBytes), of.length());
+        Lib.debug(dbgProcess, "" + numberOfBytes);
+        byte[] bytesToWrite = new byte[numberOfBytes];
+        this.readVirtualMemory(bufferToWritePointer, bytesToWrite, 0, numberOfBytes);
+        return of.write(bytesToWrite,0,numberOfBytes);
+    }
+
+    private int handleClose(int fileDescriptor) {
+        Lib.debug(dbgProcess, "syscall close with descriptor: " + fileDescriptor);
+        OpenFile of = this.fileDescriptorTable.get(fileDescriptor);
+        if (of == null) {
+            Lib.debug(dbgProcess, "The filedescriptor provided ins't exists.");
+            return -1;
+        }        
+        of.close();
+        return (this.removeFileDescriptor(of)) ? 0 : -1;
+    }
+
+
+    private int handleUnlik(int fileNamePointer) {
+        Lib.debug(dbgProcess, "syscall unlink with fileNamePointer: " + fileNamePointer);
+        String fileName = readVirtualMemoryString(fileNamePointer, 255);
+        if (fileName == null) {
+            Lib.debug(dbgProcess, "Invalid file name.");
+            return -1;
+        }
+        return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
+    }
 
     private static final int
     syscallHalt = 0,
@@ -421,7 +520,16 @@ public class UserProcess {
                 return handleHalt();
             case syscallCreate:
                 return handleCreate(a0);
-
+            case syscallOpen:
+                return handleOpen(a0);
+            case syscallRead:
+                return handleRead(a0, a1, a2);
+            case syscallWrite:
+                return handleWrite(a0, a1, a2);
+            case syscallClose:
+                return handleClose(a0);
+            case syscallUnlink:
+                return handleUnlik(a0);
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
                 Lib.assertNotReached("Unknown system call!");
@@ -459,11 +567,6 @@ public class UserProcess {
         }
     }
 	
-	private int addFileDescriptor(OpenFile of) {
-		this.fileDescriptorTable.put(currentFileDescriptor, of);
-		return currentFileDescriptor++;
-	}
-	
     /** The program being run by this process. */
     protected Coff coff;
 
@@ -482,5 +585,5 @@ public class UserProcess {
     private static final char dbgProcess = 'a';
 	
 	private HashMap<Integer, OpenFile> fileDescriptorTable;
-	private int currentFileDescriptor = 0;
+    private LinkedList<Integer> availableFileDescriptors;	
 }
