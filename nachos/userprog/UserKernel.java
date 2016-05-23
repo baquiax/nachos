@@ -148,7 +148,7 @@ public class UserKernel extends ThreadedKernel {
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;
 	
-	//0...n pages.
+	//0...n-1 pages.
 	private static LinkedList<Interger> physicalPages;
 	private static Lock mutex;
 }

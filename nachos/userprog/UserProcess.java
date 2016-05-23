@@ -32,6 +32,10 @@ public class UserProcess {
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
             pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+  
+        lock.acquire();          
+        this.PID = UserProcess.CURRENT_PID++;
+        lock.release();
     }		
 	
     /**
@@ -141,10 +145,34 @@ public class UserProcess {
         if (vaddr < 0 || vaddr >= memory.length)
             return 0;
 
-        int amount = Math.min(length, memory.length - vaddr);
-        System.arraycopy(memory, vaddr, data, offset, amount);
-
-        return amount;
+        //Here there is the magic code!
+        //int amount = Math.min(length, memory.length - vaddr);
+        ///System.arraycopy(memory, vaddr, data, offset, amount);
+        
+        int basePage = (int) vaddr/this.pageSize; //e.g (1100/1000) = page 1
+        int endPage =  (vaddr + length) / pageSize //e.g (1100 + 1600)/1000 = page 2            
+        int offset = addr % pageSize; // e.g 1100 % 1000 = 100
+        
+        int physicalPage;
+        int bytesToCopy;
+        int physicalPageAddress;
+        int bytesCopied;
+        
+        for (int i = basePage; i <= basePage; i++) {            
+            //Read all a page or a part of this.
+            bytesToCopy = Math.min(length, pageSize);
+            physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
+            pageTable[i].used = true; //According TranslationEntry class, whe need put to used.            
+            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? offset : 0); // + offset only for the first Page
+            
+            //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
+            System.arraycopy(memory, physicalPageAddress, data, offset, bytesToCopy); //Copy chunk by chunk of memory.
+            
+            offset += bytesToCopy;
+            length -= bytesToCopy;                   
+            bytesCopied += bytesToCopy;
+        }
+        return bytesCopied;  
     }
 
     /**
@@ -184,8 +212,8 @@ public class UserProcess {
         if (vaddr < 0 || vaddr >= memory.length)
             return 0;
 
-        int amount = Math.min(length, memory.length - vaddr);
-        System.arraycopy(data, offset, memory, vaddr, amount);
+        //int amount = Math.min(length, memory.length - vaddr);
+        //System.arraycopy(data, offset, memory, vaddr, amount);
 
         return amount;
     }
@@ -344,6 +372,7 @@ public class UserProcess {
      */
     private int handleHalt() {
 		//TODO: Solo el root puede hacer halt, de lo contrario ignorar.
+        if (this.PID != 0) return -1;
         Machine.halt();
 
         Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -473,6 +502,12 @@ public class UserProcess {
         }
         return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
     }
+    
+    private void handleClose(int status) {
+        //Close all files, free fileDescriptors/
+        
+    }
+    
 
     private static final int
     syscallHalt = 0,
@@ -530,6 +565,8 @@ public class UserProcess {
                 return handleClose(a0);
             case syscallUnlink:
                 return handleUnlik(a0);
+            case syscallExit:
+                return handleClose(a0);
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
                 Lib.assertNotReached("Unknown system call!");
@@ -583,7 +620,10 @@ public class UserProcess {
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-	
+	private static final int CURRENT_PID = 0;
+    private static Lock lock = new Lock();
+    
 	private HashMap<Integer, OpenFile> fileDescriptorTable;
-    private LinkedList<Integer> availableFileDescriptors;	
+    private LinkedList<Integer> availableFileDescriptors;    
+    private int PID;        	
 }
