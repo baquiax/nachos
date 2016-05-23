@@ -144,11 +144,11 @@ public class UserProcess {
         // for now, just assume that virtual addresses equal physical addresses
         if (vaddr < 0 || vaddr >= memory.length)
             return 0;
-
-        //Here there is the magic code!
+        
         //int amount = Math.min(length, memory.length - vaddr);
         ///System.arraycopy(memory, vaddr, data, offset, amount);
         
+        //Here there is the magic code!        
         int basePage = (int) vaddr/this.pageSize; //e.g (1100/1000) = page 1
         int endPage =  (vaddr + length) / pageSize //e.g (1100 + 1600)/1000 = page 2            
         int offset = addr % pageSize; // e.g 1100 % 1000 = 100
@@ -214,8 +214,32 @@ public class UserProcess {
 
         //int amount = Math.min(length, memory.length - vaddr);
         //System.arraycopy(data, offset, memory, vaddr, amount);
-
-        return amount;
+        
+        //Here there is the magic code!        
+        int basePage = (int) vaddr/this.pageSize; //e.g (1100/1000) = page 1
+        int endPage =  (vaddr + length) / pageSize //e.g (1100 + 1600)/1000 = page 2            
+        int offset = addr % pageSize; // e.g 1100 % 1000 = 100
+        
+        int physicalPage;
+        int bytesToCopy;
+        int physicalPageAddress;
+        int bytesCopied;
+        
+        for (int i = basePage; i <= basePage; i++) {            
+            //Read all a page or a part of this.
+            bytesToCopy = Math.min(length, pageSize);
+            physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
+            pageTable[i].used = true; //According TranslationEntry class, whe need put to used.            
+            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? offset : 0); // + offset only for the first Page
+            
+            //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
+            System.arraycopy(data, offset, memory, physicalPageAddress, bytesToCopy); //It's same readVirtualMemory
+            
+            offset += bytesToCopy;
+            length -= bytesToCopy;
+            bytesCopied += bytesToCopy;
+        }
+        return bytesCopied;        
     }
 
     /**
@@ -320,6 +344,18 @@ public class UserProcess {
             Lib.debug(dbgProcess, "\tinsufficient physical memory");
             return false;
         }
+        
+        //Load pages
+        for(int i = 0; i < numPages; i++) {
+            if (UserKernel.getAvailablePages() == 0) {
+                coff.close();
+                Lib.debug(dbgProcess, "\tinsufficient pages");
+                return false;                
+            }                        
+            pageTable[i].ppn = UserKernel.allocPage();
+            //Mark as used.
+            pageTable[i].used = true;
+        }
 
         // load sections
         for (int s = 0; s < coff.getNumSections(); s++) {
@@ -332,7 +368,10 @@ public class UserProcess {
                 int vpn = section.getFirstVPN() + i;
 
                 // for now, just assume virtual addresses=physical addresses
-                section.loadPage(i, vpn);
+                //section.loadPage(i, vpn);
+                
+                //Here there is the magical code!!!
+                pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
             }
         }
 

@@ -58,7 +58,7 @@ public class UserKernel extends ThreadedKernel {
 		mutex.releae();
 	}
 
-	public static int getAvaiablePages() {
+	public static int getAvailablePages() {
 		mutex.acquire();
 		return this.physicalPages.size();
 		mutex.releae();		
