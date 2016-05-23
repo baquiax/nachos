@@ -3,7 +3,7 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
-import user.util.LinkedList;
+import java.util.LinkedList;
 
 /**
  * A kernel that can support multiple user processes.
@@ -13,9 +13,7 @@ public class UserKernel extends ThreadedKernel {
      * Allocate a new user kernel.
      */
     public UserKernel() {
-        super();
-		this.physicalPages = new LinkedList<Integer>();
-		this.mutex = new Lock();
+        super();		
     }
 
     /**
@@ -25,12 +23,14 @@ public class UserKernel extends ThreadedKernel {
     public void initialize(String[] args) {
         super.initialize(args);
 
+        UserKernel.physicalPages = new LinkedList<Integer>();
+        UserKernel.mutex = new Lock();
+
 		//Adding pageIds
 		for (int numberOfPage = 0; numberOfPage < Machine.processor().getNumPhysPages() ; numberOfPage++) {
-			this.physicalPages.add(numberOfPage);
-		}
-		
-        console = new SynchConsole(Machine.console());
+			UserKernel.physicalPages.add(numberOfPage);
+		}        
+        UserKernel.console = new SynchConsole(Machine.console());        
 
         Machine.processor().setExceptionHandler(new Runnable() {
             public void run() {
@@ -42,26 +42,28 @@ public class UserKernel extends ThreadedKernel {
 	//Return -1 when not exists an avaiable page.
 	public static int allocPage() {
 		int pageId = -1;
-		mutex.acquire();
-		if (this.physicalPages.peek() != null) {
-			return this.physicalPages.poll();
+		UserKernel.mutex.acquire();
+		if (UserKernel.physicalPages.peek() != null) {
+			pageId = UserKernel.physicalPages.poll();
 		}
-		mutex.release();
+		UserKernel.mutex.release();
 		return pageId;
 	}
 
 	public static void releasePage(int pageId) {
-		mutex.acquire();
-		if (pageId > 0) {
-			this.physicalPages.add(pageId);
+		UserKernel.mutex.acquire();
+		if (pageId >= 0) {
+			UserKernel.physicalPages.addLast(pageId);
 		}
-		mutex.releae();
+		UserKernel.mutex.release();
 	}
 
 	public static int getAvailablePages() {
-		mutex.acquire();
-		return this.physicalPages.size();
-		mutex.releae();		
+		int size;
+        UserKernel.mutex.acquire();
+		size = UserKernel.physicalPages.size();
+		UserKernel.mutex.release();		
+        return size;
 	}
 
     /**
@@ -149,6 +151,6 @@ public class UserKernel extends ThreadedKernel {
     private static Coff dummy1 = null;
 	
 	//0...n-1 pages.
-	private static LinkedList<Interger> physicalPages;
+	private static LinkedList<Integer> physicalPages;
 	private static Lock mutex;
 }

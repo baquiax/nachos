@@ -149,21 +149,21 @@ public class UserProcess {
         ///System.arraycopy(memory, vaddr, data, offset, amount);
         
         //Here there is the magic code!        
-        int basePage = (int) vaddr/this.pageSize; //e.g (1100/1000) = page 1
-        int endPage =  (vaddr + length) / pageSize //e.g (1100 + 1600)/1000 = page 2            
-        int offset = addr % pageSize; // e.g 1100 % 1000 = 100
+        int basePage = vaddr/this.pageSize; //e.g (1100/1000) = page 1
+        int endPage =  (vaddr + length) / pageSize; //e.g (1100 + 1600)/1000 = page 2            
+        int physicalOffset = vaddr % pageSize; // e.g 1100 % 1000 = 100
         
         int physicalPage;
         int bytesToCopy;
         int physicalPageAddress;
-        int bytesCopied;
+        int bytesCopied = 0;
         
         for (int i = basePage; i <= basePage; i++) {            
             //Read all a page or a part of this.
             bytesToCopy = Math.min(length, pageSize);
             physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
             pageTable[i].used = true; //According TranslationEntry class, whe need put to used.            
-            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? offset : 0); // + offset only for the first Page
+            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? physicalOffset : 0); // + offset only for the first Page
             
             //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
             System.arraycopy(memory, physicalPageAddress, data, offset, bytesToCopy); //Copy chunk by chunk of memory.
@@ -217,20 +217,20 @@ public class UserProcess {
         
         //Here there is the magic code!        
         int basePage = (int) vaddr/this.pageSize; //e.g (1100/1000) = page 1
-        int endPage =  (vaddr + length) / pageSize //e.g (1100 + 1600)/1000 = page 2            
-        int offset = addr % pageSize; // e.g 1100 % 1000 = 100
+        int endPage =  (vaddr + length) / pageSize; //e.g (1100 + 1600)/1000 = page 2            
+        int physicalOffset = vaddr % pageSize; // e.g 1100 % 1000 = 100
         
         int physicalPage;
         int bytesToCopy;
         int physicalPageAddress;
-        int bytesCopied;
+        int bytesCopied = 0;
         
         for (int i = basePage; i <= basePage; i++) {            
             //Read all a page or a part of this.
             bytesToCopy = Math.min(length, pageSize);
             physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
             pageTable[i].used = true; //According TranslationEntry class, whe need put to used.            
-            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? offset : 0); // + offset only for the first Page
+            physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? physicalOffset : 0); // + offset only for the first Page
             
             //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
             System.arraycopy(data, offset, memory, physicalPageAddress, bytesToCopy); //It's same readVirtualMemory
@@ -353,7 +353,6 @@ public class UserProcess {
                 return false;                
             }                        
             pageTable[i].ppn = UserKernel.allocPage();
-            //Mark as used.
             pageTable[i].used = true;
         }
 
@@ -372,6 +371,7 @@ public class UserProcess {
                 
                 //Here there is the magical code!!!
                 pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
+                section.loadPage(i, vpn);
             }
         }
 
@@ -542,7 +542,7 @@ public class UserProcess {
         return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
     }
     
-    private void handleClose(int status) {
+    private void handleExit(int status) {
         //Close all files, free fileDescriptors/
         
     }
@@ -659,7 +659,7 @@ public class UserProcess {
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-	private static final int CURRENT_PID = 0;
+	private static int CURRENT_PID = 0;
     private static Lock lock = new Lock();
     
 	private HashMap<Integer, OpenFile> fileDescriptorTable;
