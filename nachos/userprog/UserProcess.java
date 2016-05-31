@@ -61,7 +61,7 @@ public class UserProcess {
         if (!load(name, args))
             return false;
 
-        new UThread(this).setName(name).fork();
+        this.userThread = new UThread(this).setName(name).fork();
 
         return true;
     }
@@ -440,7 +440,7 @@ public class UserProcess {
     }
     
     private boolean removeFileDescriptor(OpenFile of) {
-        int fileDescriptorIndex = this.availableFileDescriptors.indexOf(of);
+        int fileDescriptorIndex = this.fileDescriptorTable.indexOf(of);
         if (fileDescriptorIndex == -1) return false;
         this.fileDescriptorTable.remove(fileDescriptorIndex);
         this.availableFileDescriptors.addLast(fileDescriptorIndex);
@@ -532,7 +532,7 @@ public class UserProcess {
     }
 
 
-    private int handleUnlik(int fileNamePointer) {
+    private int handleUnlink(int fileNamePointer) {
         Lib.debug(dbgProcess, "syscall unlink with fileNamePointer: " + fileNamePointer);
         String fileName = readVirtualMemoryString(fileNamePointer, 255);
         if (fileName == null) {
@@ -542,12 +542,79 @@ public class UserProcess {
         return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
     }
     
-    private void handleExit(int status) {
-        //Close all files, free fileDescriptors/
+    private void handleExec(int fileNamePointer, int numberOfArgs, int argsPointer) {        
+        Lib.debug(dbgProcess, "syscall exec with fileNamePointer: " + fileNamePointer);
+        String fileName = readVirtualMemoryString(fileNamePointer, 255);
+        if (fileName == null) {
+            Lib.debug(dbgProcess, "Invalid file name.");
+            return -1;
+        }
         
+        if (!fileName.trim().endsWith(".coff")) {
+            Lib.debug(dbgProcess, "Invalid COFF file.");
+            return -1;
+        }
+        
+        if (numberOfArgs < 0) {
+            Lib.debug(dbgProcess, "Number of args should be positive.");
+            return 1;
+        }
+        byte[] params = new byte[numberOfArgs * 4]; //Data of pointers
+        readVirtualMemory(argsPointer, params); 
+        UserProcess newChild = UserProcess.newUserProcess();
+                
+        String args[] = new String[numberOfArgs];
+        for (int i = 0; i < numberOfArgs; i++) {
+            byte[] bytesOfPointer = new byte[4]; 
+            System.arraycopy(params, i * 4, bytesOfPointer, 0, 4);
+            int pointer = ByteBuffer.wrap(bytesOfPointer).getInt();                
+            String parameter = readVirtualMemoryString(pointer, 255);
+            args[i] = parameter;            
+        }        
+        newChild.execute(fileName, args);
+        newChild.setParent(this);
+        this.childProcesses.add(newChild.getPID(), newChild);
+        return newChild.getPID();
+    }        
+    
+    private void handleExit(int status) {
+        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);
+        //Close all opened files
+        for (OpenFile of : fileDescriptorTable.values()) {
+            of.close();
+        }
+        fileDescriptorTable.clear();        
+        this.unloadSections();//No esta implementado
+    }    
+
+    private int handleJoin(int childPID, int statusPointer) {
+        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);
+        UserProcess child = this.childProcesses.get(childPID);
+        if (child == null) {
+            Lib.debug(dbgProcess, "The PID " + pid + " isn't a recognized child.");
+            return -1;
+        }
+        child.getUserThread.join(); //Join to child
+        
+        return 1;
+    }                
+    
+    public int getPID() {
+        return this.PID;
     }
     
-
+    public void setParent(UserProcess up) {
+        this.parent = up;
+    }
+    
+    public UserProcess getParent() {
+        return this.parent;    
+    }
+    
+    public UThread getUserThread() {
+        return this.userThread;
+    }
+    
     private static final int
     syscallHalt = 0,
         syscallExit = 1,
@@ -603,9 +670,13 @@ public class UserProcess {
             case syscallClose:
                 return handleClose(a0);
             case syscallUnlink:
-                return handleUnlik(a0);
+                return handleUnlink(a0);
+            case syscallJoin(a0):
+                return handleJoin(a0);
+            case syscallExec(a0):
+                return handleExec(a0,a1,a2);                
             case syscallExit:
-                return handleClose(a0);
+                return handleExit(a0,a1);
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
                 Lib.assertNotReached("Unknown system call!");
@@ -663,6 +734,9 @@ public class UserProcess {
     private static Lock lock = new Lock();
     
 	private HashMap<Integer, OpenFile> fileDescriptorTable;
-    private LinkedList<Integer> availableFileDescriptors;    
+    private HashMap<Integer, UserProcess> childProcesses;
+    private LinkedList<Integer> availableFileDescriptors;
+    private UThread userThread;     
+    private UserProcess parent; //Required by JOIN    
     private int PID;        	
 }
