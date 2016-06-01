@@ -5,7 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 import java.util.HashMap;
 import java.util.LinkedList;
-
+import java.nio.ByteBuffer;
 import java.io.EOFException;
 
 /**
@@ -62,8 +62,8 @@ public class UserProcess {
         if (!load(name, args))
             return false;
 
-        this.userThread = new UThread(this).setName(name).fork();
-
+        this.userThread = new UThread(this);
+        this.userThread.setName(name).fork();
         return true;
     }
 
@@ -440,11 +440,10 @@ public class UserProcess {
         return fileDescriptor;
     }
     
-    private boolean removeFileDescriptor(OpenFile of) {
-        int fileDescriptorIndex = this.fileDescriptorTable.indexOf(of);
-        if (fileDescriptorIndex == -1) return false;
-        this.fileDescriptorTable.remove(fileDescriptorIndex);
-        this.availableFileDescriptors.addLast(fileDescriptorIndex);
+    private boolean removeFileDescriptor(int fileDescriptor) {        
+        if (fileDescriptor < 0 && fileDescriptor >= this.fileDescriptorTable.size()) return false;
+        this.fileDescriptorTable.remove(fileDescriptor);
+        this.availableFileDescriptors.addLast(fileDescriptor);
         return true;
     }
 
@@ -529,7 +528,7 @@ public class UserProcess {
             return -1;
         }        
         of.close();
-        return (this.removeFileDescriptor(of)) ? 0 : -1;
+        return (this.removeFileDescriptor(fileDescriptor)) ? 0 : -1;
     }
 
 
@@ -543,7 +542,7 @@ public class UserProcess {
         return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
     }
     
-    private void handleExec(int fileNamePointer, int numberOfArgs, int argsPointer) {        
+    private int handleExec(int fileNamePointer, int numberOfArgs, int argsPointer) {        
         Lib.debug(dbgProcess, "syscall exec with fileNamePointer: " + fileNamePointer);
         String fileName = readVirtualMemoryString(fileNamePointer, 255);
         if (fileName == null) {
@@ -577,17 +576,17 @@ public class UserProcess {
             return 1;
         }
         newChild.setParent(this);
-        this.childProcesses.add(newChild.getPID(), newChild);
+        this.childProcesses.put(newChild.getPID(), newChild);
         return newChild.getPID();
     }        
     
     private void handleExit(int status) {
-        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);        
+        Lib.debug(dbgProcess, "syscall exit with status: " + status);
         for (OpenFile of : fileDescriptorTable.values()) { //Close all opened files
             of.close();
         }
         fileDescriptorTable.clear();
-        for (UserProcess up : this.childProcesses) {
+        for (UserProcess up : this.childProcesses.values()) {
             up.setParent(null);
         }
         
@@ -614,7 +613,7 @@ public class UserProcess {
             return -1;
         }
         child.getUserThread().join(); //Join to child
-        //Check it: http://stackoverflow.com/questions/2183240/java-integer-to-byte-array
+        /*Check it: http://stackoverflow.com/questions/2183240/java-integer-to-byte-array*/
         byte[] status = ByteBuffer.allocate(4).putInt(this.lastChildStatus).array();//Save the child status
         writeVirtualMemory(statusPointer, status);
         this.childProcesses.remove(childPID); //Not allowed join again        
@@ -696,12 +695,12 @@ public class UserProcess {
                 return handleClose(a0);
             case syscallUnlink:
                 return handleUnlink(a0);
-            case syscallJoin(a0):
-                return handleJoin(a0);
-            case syscallExec(a0):
+            case syscallJoin:
+                return handleJoin(a0,a1);
+            case syscallExec:
                 return handleExec(a0,a1,a2);                
             case syscallExit:
-                return handleExit(a0,a1);
+                handleExit(a0);
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
                 Lib.assertNotReached("Unknown system call!");
