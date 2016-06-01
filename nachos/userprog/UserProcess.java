@@ -27,7 +27,7 @@ public class UserProcess {
     public UserProcess() {
 		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();            
         this.prepareFileDescriptors(16);
-		
+		this.childProcesses = new HashMap<Integer, UserProcess>();            
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
@@ -154,9 +154,9 @@ public class UserProcess {
         int endPage =  (vaddr + length) / pageSize; //e.g (1100 + 1600)/1000 = page 2            
         int physicalOffset = vaddr % pageSize; // e.g 1100 % 1000 = 100
         
-        int physicalPage;
-        int bytesToCopy;
-        int physicalPageAddress;
+        int physicalPage = 0;
+        int bytesToCopy = 0;
+        int physicalPageAddress = 0;
         int bytesCopied = 0;
         
         for (int i = basePage; i <= basePage; i++) {            
@@ -542,7 +542,7 @@ public class UserProcess {
         return (ThreadedKernel.fileSystem.remove(fileName)) ? 0 : -1;
     }
     
-    private int handleExec(int fileNamePointer, int numberOfArgs, int argsPointer) {        
+    private int handleExec(int fileNamePointer, int argc, int argv) {        
         Lib.debug(dbgProcess, "syscall exec with fileNamePointer: " + fileNamePointer);
         String fileName = readVirtualMemoryString(fileNamePointer, 255);
         if (fileName == null) {
@@ -555,28 +555,31 @@ public class UserProcess {
             return -1;
         }
         
-        if (numberOfArgs < 0) {
+        if (argc < 0) {
             Lib.debug(dbgProcess, "Number of args should be positive.");
             return 1;
         }
-        byte[] params = new byte[numberOfArgs * 4]; //Data of pointers
-        readVirtualMemory(argsPointer, params); 
+        
         UserProcess newChild = UserProcess.newUserProcess();
-                
-        String args[] = new String[numberOfArgs];
-        for (int i = 0; i < numberOfArgs; i++) {
-            byte[] bytesOfPointer = new byte[4]; 
-            System.arraycopy(params, i * 4, bytesOfPointer, 0, 4);
-            int pointer = ByteBuffer.wrap(bytesOfPointer).getInt();                
-            String parameter = readVirtualMemoryString(pointer, 255);
+        newChild.setParent(this);
+        this.childProcesses.put(newChild.getPID(), newChild);
+
+        String args[] = new String[argc];
+        Lib.debug(dbgProcess, "syscall exec received paramNumber: " + argc);
+        for (int i = 0; i < argc; i++) {                        
+            String parameter = readVirtualMemoryString(argv, 255);
+            Lib.debug(dbgProcess, "syscall exec received param: " + parameter);
             args[i] = parameter;            
-        }        
+            argv += 256;
+        }
+        
+        Lib.debug(dbgProcess, "syscall exec with filename: " + fileName);
         if (!newChild.execute(fileName, args)) {
             Lib.debug(dbgProcess, "An error in exec.");
             return 1;
         }
-        newChild.setParent(this);
-        this.childProcesses.put(newChild.getPID(), newChild);
+        
+        Lib.debug(dbgProcess, "syscall exec end with PID: " + newChild.getPID());
         return newChild.getPID();
     }        
     
@@ -603,6 +606,7 @@ public class UserProcess {
         if (UserProcess.remainingProcesses == 0) {
             Kernel.kernel.terminate();     
         }        
+        KThread.finish();
     }    
 
     private int handleJoin(int childPID, int statusPointer) {
@@ -617,7 +621,11 @@ public class UserProcess {
         byte[] status = ByteBuffer.allocate(4).putInt(this.lastChildStatus).array();//Save the child status
         writeVirtualMemory(statusPointer, status);
         this.childProcesses.remove(childPID); //Not allowed join again        
-        return (this.lastChildStatus == 0) ? 0: 1;
+        if (this.lastChildStatus == 0) {
+            Lib.debug(dbgProcess, "syscall join with errors");
+            return 0;
+        }
+        return 1;
     }                
     
     public int getPID() {
@@ -701,6 +709,7 @@ public class UserProcess {
                 return handleExec(a0,a1,a2);                
             case syscallExit:
                 handleExit(a0);
+                break;
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
                 Lib.assertNotReached("Unknown system call!");
@@ -756,13 +765,13 @@ public class UserProcess {
     private static final char dbgProcess = 'a';
 	private static int CURRENT_PID = 0;
     private static Lock lock = new Lock();
-    
+    private static int remainingProcesses = 0;
+
 	private HashMap<Integer, OpenFile> fileDescriptorTable;
     private HashMap<Integer, UserProcess> childProcesses;
     private LinkedList<Integer> availableFileDescriptors;
     private UThread userThread;     
     private UserProcess parent; //Required by JOIN
-    private int lastChildStatus;
-    private static int remainingProcesses;
+    private int lastChildStatus;    
     private int PID;        	
 }
