@@ -230,7 +230,8 @@ public class UserProcess {
             //Read all a page or a part of this.
             bytesToCopy = Math.min(length, pageSize);
             physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
-            pageTable[i].used = true; //According TranslationEntry class, whe need put to used.            
+            pageTable[i].used = true; //According TranslationEntry class, whe need put to used.
+            pageTable[i].dirty = true;            
             physicalPageAddress = (physicalPage * this.pageSize) + ((i == basePage) ? physicalOffset : 0); // + offset only for the first Page
             
             //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
@@ -372,7 +373,7 @@ public class UserProcess {
                 
                 //Here there is the magical code!!!
                 pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
-                section.loadPage(i, vpn);
+                section.loadPage(i, pageTable[vpn].ppn);
             }
         }
 
@@ -382,7 +383,12 @@ public class UserProcess {
     /**
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
-    protected void unloadSections() {}
+    protected void unloadSections() {
+        for (TranslationEntry t : pageTable) {
+		    t.used = false;		
+		    UserKernel.releasePage(t.ppn);
+	    }
+    }
 
     /**
      * Initialize the processor's registers in preparation for running the
