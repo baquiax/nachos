@@ -9,10 +9,10 @@ int main() {
     //New process    
     char *argv[1];
     argv[0] = "a";
-    int pid = exec("testsyscalls2.coff", 1, argv);
+    int pid = exec("halt.coff", 0, argv);
     if (pid > 1) {
     	int status;
-    	join(pid, &status);
+    	//join(pid, &status);
 	}
 
     //char bye[6] = "Aloha!";

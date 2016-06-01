@@ -545,6 +545,11 @@ public class UserProcess {
     private int handleExec(int fileNamePointer, int argc, int argv) {        
         Lib.debug(dbgProcess, "syscall exec with fileNamePointer: " + fileNamePointer);
         String fileName = readVirtualMemoryString(fileNamePointer, 255);
+        UserProcess newChild = UserProcess.newUserProcess();
+        if (newChild == null) {
+            Lib.debug(dbgProcess, "Child doesn't created.");
+            return -1;
+        }
         if (fileName == null) {
             Lib.debug(dbgProcess, "Invalid file name.");
             return -1;
@@ -560,10 +565,6 @@ public class UserProcess {
             return 1;
         }
         
-        UserProcess newChild = UserProcess.newUserProcess();
-        newChild.setParent(this);
-        this.childProcesses.put(newChild.getPID(), newChild);
-
         String args[] = new String[argc];
         Lib.debug(dbgProcess, "syscall exec received paramNumber: " + argc);
         for (int i = 0; i < argc; i++) {                        
@@ -572,6 +573,9 @@ public class UserProcess {
             args[i] = parameter;            
             argv += 256;
         }
+
+        this.childProcesses.put(newChild.getPID(), newChild);
+        newChild.setParent(this);                
         
         Lib.debug(dbgProcess, "syscall exec with filename: " + fileName);
         if (!newChild.execute(fileName, args)) {
@@ -688,6 +692,7 @@ public class UserProcess {
      * @return	the value to be returned to the user.
      */
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
+        Lib.debug(dbgProcess, "HANDLING SYSCALL " + syscall);
         switch (syscall) {
             case syscallHalt:
                 return handleHalt();
@@ -727,7 +732,7 @@ public class UserProcess {
      */
     public void handleException(int cause) {
         Processor processor = Machine.processor();
-
+        Lib.debug(dbgProcess, "Unexpected exception: " + Processor.exceptionNames[cause]);
         switch (cause) {
             case Processor.exceptionSyscall:
                 int result = handleSyscall(processor.readRegister(Processor.regV0),
