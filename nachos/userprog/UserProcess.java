@@ -159,7 +159,7 @@ public class UserProcess {
         int physicalPageAddress = 0;
         int bytesCopied = 0;
         
-        for (int i = basePage; i <= basePage; i++) {            
+        for (int i = basePage; i <= endPage; i++) {            
             //Read all a page or a part of this.
             bytesToCopy = Math.min(length, pageSize);
             physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
@@ -226,7 +226,7 @@ public class UserProcess {
         int physicalPageAddress;
         int bytesCopied = 0;
         
-        for (int i = basePage; i <= basePage; i++) {            
+        for (int i = basePage; i <= endPage; i++) {            
             //Read all a page or a part of this.
             bytesToCopy = Math.min(length, pageSize);
             physicalPage = pageTable[i].ppn; //Get the real address for a virtual address.
