@@ -443,6 +443,7 @@ public class UserProcess {
         if (this.availableFileDescriptors.peek() == null) return -1;
         int fileDescriptor = this.availableFileDescriptors.poll();
         this.fileDescriptorTable.put(fileDescriptor, of);
+	Lib.debug(dbgProcess, "New filedescriptor: " + fileDescriptor);
         return fileDescriptor;
     }
     
@@ -450,7 +451,8 @@ public class UserProcess {
         if (fileDescriptor < 0 && fileDescriptor >= this.fileDescriptorTable.size()) return false;
         this.fileDescriptorTable.remove(fileDescriptor);
         this.availableFileDescriptors.addLast(fileDescriptor);
-        return true;
+	Lib.debug(dbgProcess, "Release filedescriptor: " + fileDescriptor);        
+	return true;
     }
 
 	/**
