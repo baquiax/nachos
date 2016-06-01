@@ -9,14 +9,13 @@ int main() {
     //New process    
     char *argv[1];
     argv[0] = "a";
-    int pid = exec("halt.coff", 0, argv);
+    int pid = exec("testsyscalls2.coff", 0, argv);
     if (pid > 1) {
     	int status;
-    	//join(pid, &status);
-	}
+    	join(pid, &status);
+     }
 
-    //char bye[6] = "Aloha!";
-    //write(newFile, bye, 6);
+    char bye[6] = "Aloha!";
+    write(newFile, bye, 6);
     close(newFile);
-    halt();	
 }

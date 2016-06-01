@@ -2,8 +2,10 @@
 #include "stdio.h"
 
 int main(int argc, char *argv[]) {
-	char *fileName = "newFile.txt";
-	int secondFile = open(fileName);
-    close(secondFile);    
-    exit(1);
+	char *fileName = "secondNewFile.txt";
+	int secondFile = creat(fileName);
+	char text[15] = "Desde el join!";
+	write(secondFile, text, 14);
+	close(secondFile);    
+	exit(0);
 }
