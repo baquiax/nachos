@@ -35,6 +35,7 @@ public class UserProcess {
   
         lock.acquire();          
         this.PID = UserProcess.CURRENT_PID++;
+        UserProcess.remainingProcesses++;
         lock.release();
     }		
 	
@@ -571,32 +572,53 @@ public class UserProcess {
             String parameter = readVirtualMemoryString(pointer, 255);
             args[i] = parameter;            
         }        
-        newChild.execute(fileName, args);
+        if (!newChild.execute(fileName, args)) {
+            Lib.debug(dbgProcess, "An error in exec.");
+            return 1;
+        }
         newChild.setParent(this);
         this.childProcesses.add(newChild.getPID(), newChild);
         return newChild.getPID();
     }        
     
     private void handleExit(int status) {
-        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);
-        //Close all opened files
-        for (OpenFile of : fileDescriptorTable.values()) {
+        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);        
+        for (OpenFile of : fileDescriptorTable.values()) { //Close all opened files
             of.close();
         }
-        fileDescriptorTable.clear();        
-        this.unloadSections();//No esta implementado
+        fileDescriptorTable.clear();
+        for (UserProcess up : this.childProcesses) {
+            up.setParent(null);
+        }
+        
+        if (this.parent != null) {
+            this.parent.setLastChildStatus(status);
+        }
+                
+        this.unloadSections();//Free memory
+        
+        lock.acquire();
+        UserProcess.remainingProcesses--;
+        lock.release();
+        
+        if (UserProcess.remainingProcesses == 0) {
+            Kernel.kernel.terminate();     
+        }        
     }    
 
     private int handleJoin(int childPID, int statusPointer) {
-        Lib.debug(dbgProcess, "syscall exit with PID: " + pid);
+        Lib.debug(dbgProcess, "syscall join with child PID: " + childPID);
         UserProcess child = this.childProcesses.get(childPID);
         if (child == null) {
-            Lib.debug(dbgProcess, "The PID " + pid + " isn't a recognized child.");
+            Lib.debug(dbgProcess, "The child with PID " + childPID + " isn't recognized.");
             return -1;
         }
-        child.getUserThread.join(); //Join to child
-        
-        return 1;
+        child.getUserThread().join(); //Join to child
+        //Check it: http://stackoverflow.com/questions/2183240/java-integer-to-byte-array
+        byte[] status = ByteBuffer.allocate(4).putInt(this.lastChildStatus).array();//Save the child status
+        writeVirtualMemory(statusPointer, status);
+        this.childProcesses.remove(childPID); //Not allowed join again        
+        return (this.lastChildStatus == 0) ? 0: 1;
     }                
     
     public int getPID() {
@@ -615,6 +637,9 @@ public class UserProcess {
         return this.userThread;
     }
     
+    public void setLastChildStatus(int status) {
+        this.lastChildStatus = status;
+    }
     private static final int
     syscallHalt = 0,
         syscallExit = 1,
@@ -737,6 +762,8 @@ public class UserProcess {
     private HashMap<Integer, UserProcess> childProcesses;
     private LinkedList<Integer> availableFileDescriptors;
     private UThread userThread;     
-    private UserProcess parent; //Required by JOIN    
+    private UserProcess parent; //Required by JOIN
+    private int lastChildStatus;
+    private static int remainingProcesses;
     private int PID;        	
 }
