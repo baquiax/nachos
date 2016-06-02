@@ -5,7 +5,8 @@ import nachos.machine.*;
 import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.Iterator;
-
+import java.util.LinkedList;
+import java.util.Random;
 /**
  * A scheduler that chooses threads using a lottery.
  *
@@ -54,21 +55,21 @@ public class LotteryScheduler extends PriorityScheduler {
 	}
 	
 	protected class LotteryQueue extends ThreadQueue {
-		public booelan transferPriority;
-		LinkedList<KThread> waitQueue = new LinkedList<KThread>();
+		public boolean transferPriority;
+		LinkedList<ThreadState> waitQueue = new LinkedList<ThreadState>();
 		ThreadState lockHolder = null;		
 		Random r;
 		
-		public LotteryQueue(booelan transferPriority) {
+		public LotteryQueue(boolean transferPriority) {
 			this.transferPriority = transferPriority;
 			this.r = new Random();
 		}
 		
 		public void waitForAccess(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
-			ThreadState ts = getThreadState(thread).waitForAccess(this);
+			ThreadState ts = getThreadState(thread);			
 			if (lockHolder != null) {
-				lockHolder.effectivePriority += ts.effectivePriority; 
+				lockHolder.effectivePriority += ts.priority; 
 			}
 			this.waitQueue.add(ts);						
 		}
@@ -93,7 +94,6 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
     
     	public void acquire(KThread thread) {
-			this.lockHolder = thread;			
 			if (this.transferPriority) {
 				int transferedPriority = 0;
 				for (int i = 0; i < waitQueue.size(); i++) {
@@ -105,6 +105,33 @@ public class LotteryScheduler extends PriorityScheduler {
 
     	public void print() {
 			
+		}
+	}
+
+	protected class ThreadState extends PriorityScheduler.ThreadState {
+		public ThreadState(KThread thread) {
+			super(thread);
+			this.effectivePriority = 0;
+		}
+
+		public int getPriority() {
+			return this.priority;
+		}
+
+		public int getEffectivePriority() {
+			return this.effectivePriority;
+		}
+
+		public void setPriority(int priority) {
+			this.priority = priority;
+		}
+
+		public void waitForAccess(PriorityQueue waitQueue) {
+			this.waitQueue = waitQueue;
+		}
+
+		public void acquire(PriorityQueue waitQueue) {
+			this.waitQueue = waitQueue;
 		}
 	}			
 }
