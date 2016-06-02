@@ -56,11 +56,14 @@ public class LotteryScheduler extends PriorityScheduler {
 	protected class LotteryQueue extends ThreadQueue {
 		public booelan transferPriority;
 		LinkedList<KThread> waitQueue = new LinkedList<KThread>();
-		ThreadState lockHolder = null;
+		ThreadState lockHolder = null;		
+		Random r;
 		
 		public LotteryQueue(booelan transferPriority) {
 			this.transferPriority = transferPriority;
+			this.r = new Random();
 		}
+		
 		public void waitForAccess(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			ThreadState ts = getThreadState(thread).waitForAccess(this);
@@ -70,10 +73,21 @@ public class LotteryScheduler extends PriorityScheduler {
 			this.waitQueue.add(ts);						
 		}
 		
+		/**
+		 * Inspired on:
+		 * http://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched-lottery.pdf		  
+		 */
+		 
 		public KThread nextThread() {
 			if (this.waitQueue.size() > 0) {
-				//Aplicar la loteria y retornar el elegido!
-				
+				//Aplicar la loteria y retornar el elegido!								
+				int winner = r.nextInt(lockHolder.effectivePriority);
+				int counter = 0;				
+				for(ThreadState ts : this.waitQueue) {
+					counter += ts.effectivePriority;
+					if (counter > winner)
+						return ts.thread; 	
+				}				
 			}
 			return null;
 		}
