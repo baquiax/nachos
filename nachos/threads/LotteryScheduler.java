@@ -28,6 +28,9 @@ import java.util.Random;
  * the maximum).
  */
 public class LotteryScheduler extends PriorityScheduler {
+	public static final int priorityMinimum = 1;
+	public static final int priorityMaximum = Integer.MAX_VALUE;
+	
 	/**
 	 * Allocate a new lottery scheduler.
 	 */
@@ -53,7 +56,39 @@ public class LotteryScheduler extends PriorityScheduler {
 
 		return (ThreadState) thread.schedulingState;
 	}
+
+	@Override
+	public boolean increasePriority() {
+		boolean status = Machine.interrupt().disable();
+
+		KThread thread = KThread.currentThread();
+
+		int priority = getPriority(thread);
+		if (priority == priorityMaximum)
+			return false;
+
+		setPriority(thread, priority + 1);
+
+		Machine.interrupt().restore(status);
+		return true;
+	}
 	
+	@Override
+	public boolean decreasePriority() {
+		boolean status = Machine.interrupt().disable();
+
+		KThread thread = KThread.currentThread();
+
+		int priority = getPriority(thread);
+		if (priority == priorityMinimum)
+			return false;
+
+		setPriority(thread, priority - 1);
+
+		Machine.interrupt().restore(status);
+		return true;
+	}
+
 	protected class LotteryQueue extends ThreadQueue {
 		public boolean transferPriority;
 		LinkedList<ThreadState> waitQueue = new LinkedList<ThreadState>();
