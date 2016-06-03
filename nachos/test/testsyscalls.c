@@ -12,9 +12,10 @@ int main() {
     if (pid > 0) {
     	int status;
 	char bye[6] = "JOIN!\n";
+    printf("ENTRANDO DE JOIN\n");
 	write(newFile, bye, 6);
-    	join(pid, &status);
-	printf("%@", "RETURNING FROM JOIN");
+        join(pid, &status);
+        printf("SALIENDO DE JOIN\n");
      }
 
     char bye[7] = "Aloha!\n";
