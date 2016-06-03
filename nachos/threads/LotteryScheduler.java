@@ -162,11 +162,11 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		public void waitForAccess(PriorityQueue waitQueue) {
-			this.waitQueue = waitQueue;
+		    //this.waitQueue = waitQueue;
 		}
 
 		public void acquire(PriorityQueue waitQueue) {
-			this.waitQueue = waitQueue;
+		    //this.waitQueue = waitQueue;
 		}
 	}			
 }
