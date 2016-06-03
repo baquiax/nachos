@@ -11,10 +11,11 @@ int main() {
     int pid = exec("testsyscalls2.coff", 0, argv);
     if (pid > 0) {
     	int status;
-	char bye[6] = "JOIN!\n";
-    printf("ENTRANDO DE JOIN\n");
+	printf("ENTRANDO DE JOIN\n");
+	join(pid, &status);
+	
+	char bye[6] = "JOIN!\n";	
 	write(newFile, bye, 6);
-        join(pid, &status);
         printf("SALIENDO DE JOIN\n");
      }
 
