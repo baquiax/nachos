@@ -38,7 +38,7 @@ public class UserKernel extends ThreadedKernel {
             }
         });
     }
-
+    
 	//Return -1 when not exists an avaiable page.
 	public static int allocPage() {
 		int pageId = -1;

@@ -31,7 +31,7 @@ public class VMProcess extends UserProcess {
     public void restoreState() {
 	super.restoreState();
     }
-
+    
     /**
      * Initializes page tables for this process so that the executable can be
      * demand-paged.
@@ -39,7 +39,7 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-	return super.loadSections();
+	   return super.loadSections();
     }
 
     /**
@@ -58,13 +58,16 @@ public class VMProcess extends UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
-	Processor processor = Machine.processor();
+	   Processor processor = Machine.processor();
 
-	switch (cause) {
-	default:
-	    super.handleException(cause);
-	    break;
-	}
+	   switch (cause) {
+           case Processor.exceptionTLBMiss:
+                Machine.processor().readRegister(Processor.regBadVAddr);
+                break;
+	       default:
+	           super.handleException(cause);
+	           break;
+	   }
     }
 	
     private static final int pageSize = Processor.pageSize;

@@ -49,13 +49,13 @@ public final class TranslationEntry {
 	used = entry.used;
 	dirty = entry.dirty;
     }
-
+    
     /** The virtual page number. */
     public int vpn;
     
     /** The physical page number. */
     public int ppn;
-
+    
     /**
      * If this flag is <tt>false</tt>, this translation entry is ignored.
      */
