@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.nio.ByteBuffer;
 import java.io.EOFException;
+import java.util.Hashtable;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -28,6 +29,7 @@ public class UserProcess {
 		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();            
         this.prepareFileDescriptors(16);
 		this.childProcesses = new HashMap<Integer, UserProcess>();            
+        this.invertedPageTable = new Hashtable<Integer, TranslationEntry>();
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
@@ -109,7 +111,7 @@ public class UserProcess {
 
         return null;
     }
-
+    
     /**
      * Transfer data from this process's virtual memory to all of the specified
      * array. Same as <tt>readVirtualMemory(vaddr, data, 0, data.length)</tt>.
@@ -175,7 +177,7 @@ public class UserProcess {
         }
         return bytesCopied;  
     }
-
+    
     /**
      * Transfer all data from the specified array to this process's virtual
      * memory.
@@ -357,7 +359,7 @@ public class UserProcess {
             pageTable[i].ppn = UserKernel.allocPage();
             pageTable[i].used = true;
         }
-
+        
         // load sections
         for (int s = 0; s < coff.getNumSections(); s++) {
             CoffSection section = coff.getSection(s);
@@ -374,6 +376,9 @@ public class UserProcess {
                 //Here there is the magical code!!!
                 pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
                 section.loadPage(i, pageTable[vpn].ppn);
+
+                //Add TranslationEntry and PID in Inverted Page Table
+                invertedPageTable.put(getPID(), pageTable[vpn]);
             }
         }
 
@@ -787,4 +792,5 @@ public class UserProcess {
     private UserProcess parent; //Required by JOIN
     private int lastChildStatus;    
     private int PID;        	
+    public Hashtable<Integer, TranslationEntry> invertedPageTable;
 }
