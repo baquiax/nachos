@@ -57,11 +57,12 @@ public class LotteryScheduler extends PriorityScheduler {
 		return (ThreadState) thread.schedulingState;
 	}
 
-	protected class LotteryQueue extends ThreadQueue {						
+	protected class LotteryQueue extends PriorityQueue {						
 		private Random r;
-		
+		private LotteryScheduler.ThreadState lockHolder;
+
 		public LotteryQueue(boolean transferPriority) {
-			this.transferPriority = transferPriority;
+			super(transferPriority);
 			this.r = new Random();
 		}
 		
@@ -70,12 +71,20 @@ public class LotteryScheduler extends PriorityScheduler {
 			getThreadState(thread).waitForAccess(this);									
 		}
 
+		public int getEffectivePriority() {
+			int effectivePriority = priorityMinimum;
+			for(KThread kt : this.waitQueue) {
+				ThreadState ts = getThreadState(kt);
+				effectivePriority += ts.getEffectivePriority();
+			}
+			return effectivePriority;
+		}
 
 		public void acquire(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			ThreadState ts = getThreadState(thread);
 
-			if (this.holder != null && this.transferPriority) {								
+			if (this.lockHolder != null && this.transferPriority) {								
 				this.lockHolder.holdResources.remove(this); //I am no longer a slave!
 			}
 
@@ -90,12 +99,14 @@ public class LotteryScheduler extends PriorityScheduler {
 		 
 		public KThread nextThread() {
 			if (this.waitQueue.size() > 0) {
-				//Aplicar la loteria y retornar el elegido!								
-				int winner = r.nextInt(lockHolder.effectivePriority);
+				//Aplicar la loteria y retornar el elegido!
+				Lib.debug('a', "Size: " + this.waitQueue.size());
+				int winner = r.nextInt(this.getEffectivePriority()) + 1;
 				int counter = 0;				
-				for(ThreadState ts : this.waitQueue) {
-					counter += ts.effectivePriority;
-					if (counter > winner)
+				for(KThread kt : this.waitQueue) {
+					ThreadState ts = getThreadState(kt);
+					counter += ts.getEffectivePriority();
+					if (counter >= winner)
 						return ts.thread; 	
 				}				
 			}
@@ -108,8 +119,8 @@ public class LotteryScheduler extends PriorityScheduler {
 	}
 
 	protected class ThreadState extends PriorityScheduler.ThreadState {
-		private LinkedList<PriorityQueue> holdResources = new LinkedList<PriorityQueue>();
-		private PriorityQueue waitingFor;
+		protected LinkedList<LotteryQueue> holdResources = new LinkedList<LotteryQueue>();
+		protected LotteryQueue waitingFor;
 
 		public ThreadState(KThread thread) {
 			super(thread);
@@ -121,7 +132,7 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		public int getEffectivePriority() {
-			for (PriorityQueue pq : holdResources) {
+			for (LotteryQueue pq : holdResources) {
 				this.effectivePriority += pq.getEffectivePriority();
 			}
 			return this.effectivePriority;
@@ -131,13 +142,13 @@ public class LotteryScheduler extends PriorityScheduler {
 			this.priority = priority;
 		}
 
-		public void waitForAccess(PriorityQueue waitQueue) {
+		public void waitForAccess(LotteryQueue waitQueue) {
 		    Lib.assertTrue(Machine.interrupt().disabled());			
 			waitQueue.waitQueue.add(this.thread);
 			this.waitingFor = waitQueue;			
 		}
 
-		public void acquire(PriorityQueue waitQueue) {
+		public void acquire(LotteryQueue waitQueue) {
 		    Lib.assertTrue(Machine.interrupt().disabled());
 			this.holdResources.add(waitQueue);
 			if (waitQueue == this.waitingFor) {
