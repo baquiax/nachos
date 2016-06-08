@@ -28,8 +28,7 @@ public class UserProcess {
     public UserProcess() {
 		this.fileDescriptorTable = new HashMap<Integer, OpenFile>();            
         this.prepareFileDescriptors(16);
-		this.childProcesses = new HashMap<Integer, UserProcess>();            
-        this.invertedPageTable = new Hashtable<Integer, TranslationEntry>();
+		this.childProcesses = new HashMap<Integer, UserProcess>();                    
         int numPhysPages = Machine.processor().getNumPhysPages();
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
@@ -375,12 +374,7 @@ public class UserProcess {
 
                 //Here there is the magical code!!!
                 pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
-                section.loadPage(i, pageTable[vpn].ppn);
-
-                //Add TranslationEntry and PID in Inverted Page Table
-                invertedPageTable.put(getPID(), pageTable[vpn]);
-                
-                Lib.debug(dbgProcess, "\tInverted Page Table:"+invertedPageTable.get(getPID()));
+                section.loadPage(i, pageTable[vpn].ppn);                
             }
         }
         
@@ -793,6 +787,5 @@ public class UserProcess {
     private UThread userThread;     
     private UserProcess parent; //Required by JOIN
     private int lastChildStatus;    
-    private int PID;        	
-    public Hashtable<Integer, TranslationEntry> invertedPageTable;
+    private int PID;        	    
 }

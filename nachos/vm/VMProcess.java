@@ -80,7 +80,17 @@ public class VMProcess extends UserProcess {
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
+                if (vpn < 0 || vpn > pageTable.length) {                
+                    Lib.debug(dbgProcess, "Invalid page.");
+                    handleExit(-1); //Exit of the process
+                }
+
                 TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance
+                if (page == null) {
+                    //Is necessary load from GIPT
+                    Lib.debug(dbgProcess, "Page fault");
+                    
+                }
                 int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize() + 1));  
                 Machine.processor().writeTLBEntry(randomNumber, page);
                 break;
