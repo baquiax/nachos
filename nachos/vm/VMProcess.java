@@ -89,8 +89,21 @@ public class VMProcess extends UserProcess {
                 if (page == null) {
                     //Is necessary load from GIPT
                     Lib.debug(dbgProcess, "Page fault");
-                    
+                    page = VMKernel.loadPage(this.getPID(), vpn);
                 }
+                
+                //Load coff
+                for(int s=0;(s<coff.getNumSections());s++){
+                    CoffSection section = coff.getSection(s);
+                    for(int i = 0; i<section.getLength(); i++){
+                        if(section.getFirstVPN() + i == vpn) {
+                            Lib.debug(dbgProcess, "\tinitializing " + section.getName() + " section (" + section.getLength() + " pages)");
+                            pageTable[vpn].readOnly = section.isReadOnly();
+                            section.loadPage(i, pageTable[vpn].ppn);
+				        }
+			        }
+		        }
+
                 int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize() + 1));  
                 Machine.processor().writeTLBEntry(randomNumber, page);
                 break;
@@ -98,8 +111,9 @@ public class VMProcess extends UserProcess {
 	           super.handleException(cause);
 	           break;
 	   }
-    }	
+    }	    
+
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
-    private static final char dbgVM = 'v';
+    private static final char dbgVM = 'v';    
 }

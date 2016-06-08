@@ -63,14 +63,28 @@ public class VMKernel extends UserKernel {
     }
 
     public static TranslationEntry getEntry(int pid, int vpn) {
+        mutex.acquire();
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
         return globalIPT.get(key);
+        mutex.release();
     }
 
     public static void addEntry(int pid, int vpn, TranslationEntry te) {
+        mutex.acquire();
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
-        return globalIPT.put(key, te);  
+        return globalIPT.put(key, te);
+        mutex.release();  
     }
+
+    public static TranslationEntry loadPage(int pid, int vpn) {
+        mutex.acquire();
+        int ppn = UserKernel.allocPage();
+        TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, false, false);        
+        VMKernel.addEntry(pid, vpn, newTe);
+        return getEntry(pid, vpn);
+        mutex.release();
+    }
+    
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
@@ -78,6 +92,7 @@ public class VMKernel extends UserKernel {
     private static final char dbgVM = 'v';
 
     //My vars
+    private Lock mutex;
     private static Hashtable<IPTKey, TranslationEntry> globalIPT = new Hashtable<IPTKey
     , TranslationEntry> ();
     
