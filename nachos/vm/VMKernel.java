@@ -10,7 +10,7 @@ import java.util.Hashtable;
  * A kernel that can support multiple demand-paging user processes.
  */
 public class VMKernel extends UserKernel {
-    public class IPTKey {
+    public static class IPTKey {
         private int PID;
         private int vpn;
 
@@ -62,9 +62,14 @@ public class VMKernel extends UserKernel {
 	   super.terminate();
     }
 
-    public TranslationEntry getEntry(int pid, int vpn) {
-        IPTKey key = new IPTKey(pid, vpn);
+    public static TranslationEntry getEntry(int pid, int vpn) {
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);
         return globalIPT.get(key);
+    }
+
+    public static void addEntry(int pid, int vpn, TranslationEntry te) {
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);
+        return globalIPT.put(key, te);  
     }
 
     // dummy variables to make javac smarter

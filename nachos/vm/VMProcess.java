@@ -31,8 +31,8 @@ public class VMProcess extends UserProcess {
     public void restoreState() {
         super.restoreState();
         //Invalidate GIPT
-        int size = Machine.processor().getTBLSize();
-        for (int = 0; i < size ; i++) {
+        int size = Machine.processor().getTLBSize();        
+        for (int i = 0; i < size ; i++) {
             TranslationEntry te = Machine.processor().readTLBEntry(i);
             te.valid = false;
             Machine.processor().writeTLBEntry(i, te);
@@ -46,7 +46,15 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-        return super.loadSections();        
+        //return super.loadSections();
+
+        //Carga por demanda
+        int numberOfPages = Machine.processor().getNumPhysPages();
+        for (int i = 0; i < numberOfPages; i++) {
+            pageTable[i].valid = false;
+        }
+
+        return true;
     }
 
     /**
@@ -72,9 +80,9 @@ public class VMProcess extends UserProcess {
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
-                TranslationEntry page = VMKernel.getEntry(PID, vpn); //PID... Remember the inheritance
-                int randomNumber = Math.floor(Math.random()*(Machine.processor().getTBLSize() + 1));  
-                Machine.processor().writeTLBEntry(TLBnumber, page);
+                TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance
+                int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize() + 1));  
+                Machine.processor().writeTLBEntry(randomNumber, page);
                 break;
 	       default:
 	           super.handleException(cause);
