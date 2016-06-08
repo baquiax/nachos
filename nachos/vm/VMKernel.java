@@ -35,6 +35,7 @@ public class VMKernel extends UserKernel {
      */
     public void run() {
 	super.run();
+    Lib.debug(dbgVM, "VMKernel");
     }
     
     /**

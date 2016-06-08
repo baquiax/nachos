@@ -372,16 +372,18 @@ public class UserProcess {
 
                 // for now, just assume virtual addresses=physical addresses
                 //section.loadPage(i, vpn);
-                
+
                 //Here there is the magical code!!!
                 pageTable[vpn].readOnly = section.isReadOnly();//According the instructions
                 section.loadPage(i, pageTable[vpn].ppn);
 
                 //Add TranslationEntry and PID in Inverted Page Table
                 invertedPageTable.put(getPID(), pageTable[vpn]);
+                
+                Lib.debug(dbgProcess, "\tInverted Page Table:"+invertedPageTable.get(getPID()));
             }
         }
-
+        
         return true;
     }
 
@@ -394,7 +396,7 @@ public class UserProcess {
 		    UserKernel.releasePage(t.ppn);
 	    }
     }
-
+    
     /**
      * Initialize the processor's registers in preparation for running the
      * program loaded into this process. Set the PC register to point at the

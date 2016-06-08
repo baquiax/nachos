@@ -8,7 +8,7 @@ public class TLBAdmon {
 	public int getTLBSize() {
         return Machine.processor().getTLBSize();
     }
-
+    
     public TranslationEntry getTLBEntry(int indexTLB) {
         TranslationEntry entry = Machine.processor().readTLBEntry(indexTLB);
         return entry;
