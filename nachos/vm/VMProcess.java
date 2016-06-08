@@ -13,7 +13,7 @@ public class VMProcess extends UserProcess {
      * Allocate a new process.
      */
     public VMProcess() {
-	super();
+	   super();
     }
 
     /**
