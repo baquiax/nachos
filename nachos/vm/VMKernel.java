@@ -39,6 +39,7 @@ public class VMKernel extends UserKernel {
      */
     public void initialize(String[] args) {
 	   super.initialize(args);
+       mutex = new Lock();
     }
 
     /**
@@ -65,24 +66,31 @@ public class VMKernel extends UserKernel {
     public static TranslationEntry getEntry(int pid, int vpn) {
         mutex.acquire();
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
-        return globalIPT.get(key);
+        TranslationEntry te = globalIPT.get(key);
         mutex.release();
+        return te;
     }
 
-    public static void addEntry(int pid, int vpn, TranslationEntry te) {
-        mutex.acquire();
+    private static void addEntry(int pid, int vpn, TranslationEntry te) {
+        Lib.debug(dbgVM, "Key-1: " + pid + ", " + vpn + " TE:" + te);
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
-        return globalIPT.put(key, te);
-        mutex.release();  
+        globalIPT.put(key, te);        
     }
 
     public static TranslationEntry loadPage(int pid, int vpn) {
-        mutex.acquire();
         int ppn = UserKernel.allocPage();
+        mutex.acquire();        
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);
+
         TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, false, false);        
-        VMKernel.addEntry(pid, vpn, newTe);
-        return getEntry(pid, vpn);
+        
+        globalIPT.put(key, newTe); 
+        
+        TranslationEntry te = globalIPT.get(key);
+        Lib.debug(dbgVM, "Key-2: " + pid + ", " + vpn + " TE:" + te);
+
         mutex.release();
+        return te;
     }
     
 
@@ -92,7 +100,7 @@ public class VMKernel extends UserKernel {
     private static final char dbgVM = 'v';
 
     //My vars
-    private Lock mutex;
+    private static Lock mutex;
     private static Hashtable<IPTKey, TranslationEntry> globalIPT = new Hashtable<IPTKey
     , TranslationEntry> ();
     

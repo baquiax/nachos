@@ -423,7 +423,7 @@ public class KThread {
         if (testJoinAndWaitUntil) {
             //new KThread(new PingTest(1)).setName("forked thread").fork();
             //new PingTest(0).run();
-            Scheduler sched = (Scheduler) ThreadedKernel.scheduler;
+            PriorityScheduler sched = (PriorityScheduler) ThreadedKernel.scheduler;
 
             new KThread(new NOP()).fork();
 

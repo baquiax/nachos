@@ -29,7 +29,7 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-        super.restoreState();
+        //super.restoreState();
         //Invalidate GIPT
         int size = Machine.processor().getTLBSize();        
         for (int i = 0; i < size ; i++) {
@@ -47,6 +47,7 @@ public class VMProcess extends UserProcess {
      */
     protected boolean loadSections() {
         //return super.loadSections();
+        Lib.debug(dbgProcess, "Load sections.");
 
         //Carga por demanda
         int numberOfPages = Machine.processor().getNumPhysPages();
@@ -77,16 +78,17 @@ public class VMProcess extends UserProcess {
 
 	   switch (cause) {
            case Processor.exceptionTLBMiss:
+                Lib.debug(dbgProcess, "TBL Miss.");
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
                 if (vpn < 0 || vpn > pageTable.length) {                
                     Lib.debug(dbgProcess, "Invalid page.");
-                    handleExit(-1); //Exit of the process
+                    this.handleExit(-1); //Exit of the process
                 }
 
                 TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance
-                if (page == null) {
+                if (page == null || page.valid == false) {
                     //Is necessary load from GIPT
                     Lib.debug(dbgProcess, "Page fault");
                     page = VMKernel.loadPage(this.getPID(), vpn);
@@ -104,7 +106,10 @@ public class VMProcess extends UserProcess {
 			        }
 		        }
 
-                int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize() + 1));  
+                int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize()));  
+                Lib.debug(dbgProcess, "Allocated page: " + page);
+                Lib.debug(dbgProcess, "RandomIndex: " + randomNumber + ", Size: " + Machine.processor().getTLBSize());
+
                 Machine.processor().writeTLBEntry(randomNumber, page);
                 break;
 	       default:

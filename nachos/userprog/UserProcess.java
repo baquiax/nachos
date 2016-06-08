@@ -596,7 +596,7 @@ public class UserProcess {
         return newChild.getPID();
     }        
     
-    private void handleExit(int status) {
+    public void handleExit(int status) {
         Lib.debug(dbgProcess, "syscall exit with status: " + status);
         for (OpenFile of : fileDescriptorTable.values()) { //Close all opened files
             of.close();
