@@ -13,7 +13,7 @@ public class VMProcess extends UserProcess {
      * Allocate a new process.
      */
     public VMProcess() {
-	   super();
+        super();
     }
 
     /**
@@ -21,7 +21,7 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
-	super.saveState();
+        super.saveState();
     }
 
     /**
@@ -29,7 +29,14 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-	super.restoreState();
+        super.restoreState();
+        //Invalidate GIPT
+        int size = Machine.processor().getTBLSize();
+        for (int = 0; i < size ; i++) {
+            TranslationEntry te = Machine.processor().readTLBEntry(i);
+            te.valid = false;
+            Machine.processor().writeTLBEntry(i, te);
+        }        
     }
     
     /**
@@ -39,14 +46,14 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-	   return super.loadSections();
+        return super.loadSections();        
     }
 
     /**
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-	super.unloadSections();
+        super.unloadSections();
     }    
 
     /**
@@ -62,14 +69,18 @@ public class VMProcess extends UserProcess {
 
 	   switch (cause) {
            case Processor.exceptionTLBMiss:
-                Machine.processor().readRegister(Processor.regBadVAddr);
+                //Search for value...                
+                int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
+                int vpn = vaddr/pageSize;
+                TranslationEntry page = VMKernel.getEntry(PID, vpn); //PID... Remember the inheritance
+                int randomNumber = Math.floor(Math.random()*(Machine.processor().getTBLSize() + 1));  
+                Machine.processor().writeTLBEntry(TLBnumber, page);
                 break;
 	       default:
 	           super.handleException(cause);
 	           break;
 	   }
-    }
-	
+    }	
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
     private static final char dbgVM = 'v';

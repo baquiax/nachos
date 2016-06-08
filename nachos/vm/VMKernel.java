@@ -62,11 +62,18 @@ public class VMKernel extends UserKernel {
 	   super.terminate();
     }
 
+    public TranslationEntry getEntry(int pid, int vpn) {
+        IPTKey key = new IPTKey(pid, vpn);
+        return globalIPT.get(key);
+    }
+
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
 
     private static final char dbgVM = 'v';
 
     //My vars
+    private static Hashtable<IPTKey, TranslationEntry> globalIPT = new Hashtable<IPTKey
+    , TranslationEntry> ();
     
 }
