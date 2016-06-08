@@ -57,56 +57,39 @@ public class LotteryScheduler extends PriorityScheduler {
 		return (ThreadState) thread.schedulingState;
 	}
 
-	@Override
-	public boolean increasePriority() {
-		boolean status = Machine.interrupt().disable();
+	protected class LotteryQueue extends PriorityQueue {						
+		private Random r;
+		private LotteryScheduler.ThreadState lockHolder;
 
-		KThread thread = KThread.currentThread();
-
-		int priority = getPriority(thread);
-		if (priority == priorityMaximum)
-			return false;
-
-		setPriority(thread, priority + 1);
-
-		Machine.interrupt().restore(status);
-		return true;
-	}
-	
-	@Override
-	public boolean decreasePriority() {
-		boolean status = Machine.interrupt().disable();
-
-		KThread thread = KThread.currentThread();
-
-		int priority = getPriority(thread);
-		if (priority == priorityMinimum)
-			return false;
-
-		setPriority(thread, priority - 1);
-
-		Machine.interrupt().restore(status);
-		return true;
-	}
-
-	protected class LotteryQueue extends ThreadQueue {
-		public boolean transferPriority;
-		LinkedList<ThreadState> waitQueue = new LinkedList<ThreadState>();
-		ThreadState lockHolder = null;		
-		Random r;
-		
 		public LotteryQueue(boolean transferPriority) {
-			this.transferPriority = transferPriority;
+			super(transferPriority);
 			this.r = new Random();
 		}
 		
 		public void waitForAccess(KThread thread) {
 			Lib.assertTrue(Machine.interrupt().disabled());
-			ThreadState ts = getThreadState(thread);			
-			if (lockHolder != null) {
-				lockHolder.effectivePriority += ts.priority; 
+			getThreadState(thread).waitForAccess(this);									
+		}
+
+		public int getEffectivePriority() {
+			int effectivePriority = priorityMinimum;
+			for(KThread kt : this.waitQueue) {
+				ThreadState ts = getThreadState(kt);
+				effectivePriority += ts.getEffectivePriority();
 			}
-			this.waitQueue.add(ts);						
+			return effectivePriority;
+		}
+
+		public void acquire(KThread thread) {
+			Lib.assertTrue(Machine.interrupt().disabled());
+			ThreadState ts = getThreadState(thread);
+
+			if (this.lockHolder != null && this.transferPriority) {								
+				this.lockHolder.holdResources.remove(this); //I am no longer a slave!
+			}
+
+			this.lockHolder = ts; //I am the Lord!
+			ts.acquire(this);
 		}
 		
 		/**
@@ -116,37 +99,32 @@ public class LotteryScheduler extends PriorityScheduler {
 		 
 		public KThread nextThread() {
 			if (this.waitQueue.size() > 0) {
-				//Aplicar la loteria y retornar el elegido!								
-				int winner = r.nextInt(lockHolder.effectivePriority);
+				//Aplicar la loteria y retornar el elegido!
+				Lib.debug('a', "Size: " + this.waitQueue.size());
+				int winner = r.nextInt(this.getEffectivePriority()) + 1;
 				int counter = 0;				
-				for(ThreadState ts : this.waitQueue) {
-					counter += ts.effectivePriority;
-					if (counter > winner)
+				for(KThread kt : this.waitQueue) {
+					ThreadState ts = getThreadState(kt);
+					counter += ts.getEffectivePriority();
+					if (counter >= winner)
 						return ts.thread; 	
 				}				
 			}
 			return null;
 		}
-    
-    	public void acquire(KThread thread) {
-			if (this.transferPriority) {
-				int transferedPriority = 0;
-				for (int i = 0; i < waitQueue.size(); i++) {
-					transferedPriority = waitQueue.get(i).priority;					
-				}
-				this.lockHolder.effectivePriority = transferedPriority;
-			}
-		}
-
+				
     	public void print() {
 			
 		}
 	}
 
 	protected class ThreadState extends PriorityScheduler.ThreadState {
+		protected LinkedList<LotteryQueue> holdResources = new LinkedList<LotteryQueue>();
+		protected LotteryQueue waitingFor;
+
 		public ThreadState(KThread thread) {
 			super(thread);
-			this.effectivePriority = 0;
+			this.effectivePriority = priorityMinimum;
 		}
 
 		public int getPriority() {
@@ -154,6 +132,9 @@ public class LotteryScheduler extends PriorityScheduler {
 		}
 
 		public int getEffectivePriority() {
+			for (LotteryQueue pq : holdResources) {
+				this.effectivePriority += pq.getEffectivePriority();
+			}
 			return this.effectivePriority;
 		}
 
@@ -161,12 +142,18 @@ public class LotteryScheduler extends PriorityScheduler {
 			this.priority = priority;
 		}
 
-		public void waitForAccess(PriorityQueue waitQueue) {
-		    //this.waitQueue = waitQueue;
+		public void waitForAccess(LotteryQueue waitQueue) {
+		    Lib.assertTrue(Machine.interrupt().disabled());			
+			waitQueue.waitQueue.add(this.thread);
+			this.waitingFor = waitQueue;			
 		}
 
-		public void acquire(PriorityQueue waitQueue) {
-		    //this.waitQueue = waitQueue;
+		public void acquire(LotteryQueue waitQueue) {
+		    Lib.assertTrue(Machine.interrupt().disabled());
+			this.holdResources.add(waitQueue);
+			if (waitQueue == this.waitingFor) {
+				this.waitingFor = null;
+			} 
 		}
 	}			
 }
