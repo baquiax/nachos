@@ -70,8 +70,8 @@ public class VMKernel extends UserKernel {
         mutex.release();
         return te;
     }
-
-    private static void addEntry(int pid, int vpn, TranslationEntry te) {
+    
+    public static void addEntry(int pid, int vpn, TranslationEntry te) {
         Lib.debug(dbgVM, "Key-1: " + pid + ", " + vpn + " TE:" + te);
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
         globalIPT.put(key, te);        
@@ -92,7 +92,6 @@ public class VMKernel extends UserKernel {
         mutex.release();
         return te;
     }
-    
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;

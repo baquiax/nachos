@@ -42,7 +42,7 @@ public class VMProcess extends UserProcess {
     /**
      * Initializes page tables for this process so that the executable can be
      * demand-paged.
-     *
+     * 
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
@@ -51,10 +51,16 @@ public class VMProcess extends UserProcess {
 
         //Carga por demanda
         int numberOfPages = Machine.processor().getNumPhysPages();
+        int vaddr, vpn;
         for (int i = 0; i < numberOfPages; i++) {
             pageTable[i].valid = false;
+            vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
+            vpn = vaddr/pageSize;
+            TranslationEntry entryIPT = Machine.processor().readTLBEntry(i);
+            VMKernel.addEntry(this.getPID(), vpn,entryIPT);
+            Lib.debug(dbgProcess, String.valueOf(i));
         }
-
+        
         return true;
     }
 
@@ -75,7 +81,7 @@ public class VMProcess extends UserProcess {
      */
     public void handleException(int cause) {
 	   Processor processor = Machine.processor();
-
+       
 	   switch (cause) {
            case Processor.exceptionTLBMiss:
                 Lib.debug(dbgProcess, "TBL Miss.");
