@@ -26,6 +26,10 @@ public class VMKernel extends UserKernel {
         public int getPID() {
             return this.PID;
         }
+
+        public String toString() {
+            return this.PID + "-" + this.vpn;
+        }
     }
     /**
      * Allocate a new VM kernel.
@@ -63,31 +67,37 @@ public class VMKernel extends UserKernel {
 	   super.terminate();
     }
 
-    public static TranslationEntry getEntry(int pid, int vpn) {
-        mutex.acquire();
-        IPTKey key = new VMKernel.IPTKey(pid, vpn);
-        TranslationEntry te = globalIPT.get(key);
-        mutex.release();
+    public static TranslationEntry getEntry(int pid, int vpn) {        
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);        
+        TranslationEntry te = globalIPT.get(key.toString());
+        Lib.debug('a', "Get entry: " + pid + ", " + vpn + " TE:" + te);        
         return te;
     }
-    
-    public static void addEntry(int pid, int vpn, TranslationEntry te) {
-        Lib.debug(dbgVM, "Key-1: " + pid + ", " + vpn + " TE:" + te);
-        IPTKey key = new VMKernel.IPTKey(pid, vpn);
-        globalIPT.put(key, te);        
+
+    public static void unloadPage(int pid, int vpn) {
+        mutex.acquire();        
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);        
+        TranslationEntry te = globalIPT.get(key.toString());
+        if (te != null) {
+            UserKernel.releasePage(te.ppn);
+            globalIPT.remove(key);    
+        }        
+        
+        mutex.release();
     }
 
     public static TranslationEntry loadPage(int pid, int vpn) {
-        int ppn = UserKernel.allocPage();
-        mutex.acquire();        
+        mutex.acquire();      
+        int ppn = UserKernel.allocPage();     
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
 
         TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, false, false);        
+        newTe.used = true;     
+        newTe.valid = true;
+        globalIPT.put(key.toString(), newTe);
         
-        globalIPT.put(key, newTe); 
-        
-        TranslationEntry te = globalIPT.get(key);
-        Lib.debug(dbgVM, "Key-2: " + pid + ", " + vpn + " TE:" + te);
+        TranslationEntry te = globalIPT.get(key.toString());
+        Lib.debug('a', "Loaded page: " + pid + ", " + vpn + " TE:" + te);
 
         mutex.release();
         return te;
@@ -100,7 +110,7 @@ public class VMKernel extends UserKernel {
 
     //My vars
     private static Lock mutex;
-    private static Hashtable<IPTKey, TranslationEntry> globalIPT = new Hashtable<IPTKey
+    private static Hashtable<String, TranslationEntry> globalIPT = new Hashtable<String
     , TranslationEntry> ();
     
 }

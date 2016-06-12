@@ -46,11 +46,28 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-        //return super.loadSections();
+        if (numPages > Machine.processor().getNumPhysPages()) {
+            coff.close();
+            Lib.debug(dbgProcess, "\tinsufficient physical memory");
+            return false;
+        }
+        
+        //Load pages amd load to GIPT        
         Lib.debug(dbgProcess, "Load sections.");
+        for (int i = 0; i < coff.getNumSections(); i++) {
+            CoffSection section = coff.getSection(i);
+            for (int s = 0; s < section.getLength(); s++) {
+                int vpn = section.getFirstVPN() + s;
+                TranslationEntry te = VMKernel.loadPage(this.getPID(), vpn);
+                Lib.debug(dbgProcess, "Loading page with PID:" + this.getPID() + " and VPN: " + vpn + " = " + te);
+                te.readOnly = section.isReadOnly();
+                pageTable[vpn] = te;
+                section.loadPage(s, te.ppn);
+            }        
+        }
 
         //Carga por demanda
-        int numberOfPages = Machine.processor().getNumPhysPages();
+        /*int numberOfPages = Machine.processor().getNumPhysPages();
         int vaddr, vpn;
         for (int i = 0; i < numberOfPages; i++) {
             pageTable[i].valid = false;
@@ -59,7 +76,7 @@ public class VMProcess extends UserProcess {
             TranslationEntry entryIPT = Machine.processor().readTLBEntry(i);
             VMKernel.addEntry(this.getPID(), vpn,entryIPT);
             Lib.debug(dbgProcess, String.valueOf(i));
-        }
+        }*/
         
         return true;
     }
@@ -68,7 +85,12 @@ public class VMProcess extends UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-        super.unloadSections();
+        //super.unloadSections();
+        //Remove from TLB
+        for (int i = 0; i < coff.getNumSections(); i++) {
+            TranslationEntry te = pageTable[i];
+            VMKernel.unloadPage(this.getPID(), te.vpn);
+        }
     }    
 
     /**
@@ -88,7 +110,7 @@ public class VMProcess extends UserProcess {
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
-                if (vpn < 0 || vpn > pageTable.length) {                
+                if (vpn < 0 || vpn > pageTable.length) {
                     Lib.debug(dbgProcess, "Invalid page.");
                     this.handleExit(-1); //Exit of the process
                 }
@@ -96,24 +118,11 @@ public class VMProcess extends UserProcess {
                 TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance
                 if (page == null || page.valid == false) {
                     //Is necessary load from GIPT
-                    Lib.debug(dbgProcess, "Page fault");
-                    page = VMKernel.loadPage(this.getPID(), vpn);
+                    Lib.debug(dbgProcess, "PAGE FAULT with PID:" + this.getPID() + " and VPN: " + vpn + " = " + page);
+                    page = VMKernel.loadPage(this.getPID(), vpn); 
                 }
                 
-                //Load coff
-                for(int s=0;(s<coff.getNumSections());s++){
-                    CoffSection section = coff.getSection(s);
-                    for(int i = 0; i<section.getLength(); i++){
-                        if(section.getFirstVPN() + i == vpn) {
-                            Lib.debug(dbgProcess, "\tinitializing " + section.getName() + " section (" + section.getLength() + " pages)");
-                            pageTable[vpn].readOnly = section.isReadOnly();
-                            section.loadPage(i, pageTable[vpn].ppn);
-				        }
-			        }
-		        }
-
-                int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize()));  
-                Lib.debug(dbgProcess, "Allocated page: " + page);
+                int randomNumber = (int) Math.floor(Math.random()*(Machine.processor().getTLBSize()));                  
                 Lib.debug(dbgProcess, "RandomIndex: " + randomNumber + ", Size: " + Machine.processor().getTLBSize());
 
                 Machine.processor().writeTLBEntry(randomNumber, page);
