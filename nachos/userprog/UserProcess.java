@@ -353,8 +353,8 @@ public class UserProcess {
             if (UserKernel.getAvailablePages() == 0) {
                 coff.close();
                 Lib.debug(dbgProcess, "\tinsufficient pages");
-                return false;                
-            }                        
+                return false;
+            }
             pageTable[i].ppn = UserKernel.allocPage();
             pageTable[i].used = true;
         }

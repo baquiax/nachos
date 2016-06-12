@@ -46,21 +46,22 @@ public class VMProcess extends UserProcess {
      * @return	<tt>true</tt> if successful.
      */
     protected boolean loadSections() {
-        if (numPages > Machine.processor().getNumPhysPages()) {
+        //Now there are infinite pages using swap
+        /*if (numPages > Machine.processor().getNumPhysPages()) {
             coff.close();
             Lib.debug(dbgProcess, "\tinsufficient physical memory");
             return false;
-        }
+        }*/
 
         for(int i = 0; i < numPages; i++) {
-            if (UserKernel.getAvailablePages() == 0) {
+            //Now there are infinite pages using swap
+            /*if (UserKernel.getAvailablePages() == 0) {
                 coff.close();
                 Lib.debug(dbgProcess, "\tinsufficient pages");
                 return false;
-            }
+            }*/
             TranslationEntry te = VMKernel.loadPage(this.getPID(), i);
-            pageTable[i].ppn = te.ppn;
-            pageTable[i].used = true;
+            pageTable[i] = te;
         }
         
         //Load pages and load to GIPT        
