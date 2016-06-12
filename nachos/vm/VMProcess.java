@@ -77,7 +77,7 @@ public class VMProcess extends UserProcess {
                 section.loadPage(s, te.ppn);                
             }        
         }
-
+        
         //Carga por demanda
         /*int numberOfPages = Machine.processor().getNumPhysPages();
         int vaddr, vpn;
@@ -118,7 +118,7 @@ public class VMProcess extends UserProcess {
        
 	   switch (cause) {
            case Processor.exceptionTLBMiss:
-                Lib.debug(dbgProcess, "TBL Miss.");
+                Lib.debug(dbgProcess, "TLB Miss.");
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
