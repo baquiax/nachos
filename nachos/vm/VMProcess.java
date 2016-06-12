@@ -76,7 +76,7 @@ public class VMProcess extends UserProcess {
                 section.loadPage(s, te.ppn);                
             }        
         }
-
+        
         //Carga por demanda
         /*int numberOfPages = Machine.processor().getNumPhysPages();
         int vaddr, vpn;

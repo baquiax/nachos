@@ -14,12 +14,14 @@ public class Swap {
 	}
 
 	public static void initialize(String fileName) {
-		swapFile = ThreadKernel.fileSystem.open(fileName, true);
+		swapFile = ThreadedKernel.fileSystem.open(fileName, true);
 		swapFileName = fileName;
 	}
 
 	public static void closeSwapFile() {
 		swapFile.close();
-		ThreadKernel.fileSystem.remove(swapFileName);
+		ThreadedKernel.fileSystem.remove(swapFileName);
 	}
+
+	
 }
