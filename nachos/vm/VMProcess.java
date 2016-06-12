@@ -51,18 +51,29 @@ public class VMProcess extends UserProcess {
             Lib.debug(dbgProcess, "\tinsufficient physical memory");
             return false;
         }
+
+        for(int i = 0; i < numPages; i++) {
+            if (UserKernel.getAvailablePages() == 0) {
+                coff.close();
+                Lib.debug(dbgProcess, "\tinsufficient pages");
+                return false;
+            }
+            TranslationEntry te = VMKernel.loadPage(this.getPID(), i);
+            pageTable[i].ppn = te.ppn;
+            pageTable[i].used = true;
+        }
         
-        //Load pages amd load to GIPT        
+        //Load pages and load to GIPT        
         Lib.debug(dbgProcess, "Load sections.");
         for (int i = 0; i < coff.getNumSections(); i++) {
             CoffSection section = coff.getSection(i);
+            Lib.debug(dbgProcess, "Loading section:" + section.getName());
             for (int s = 0; s < section.getLength(); s++) {
                 int vpn = section.getFirstVPN() + s;
-                TranslationEntry te = VMKernel.loadPage(this.getPID(), vpn);
+                TranslationEntry te = VMKernel.getEntry(this.getPID(), vpn);
                 Lib.debug(dbgProcess, "Loading page with PID:" + this.getPID() + " and VPN: " + vpn + " = " + te);
                 te.readOnly = section.isReadOnly();
-                pageTable[vpn] = te;
-                section.loadPage(s, te.ppn);
+                section.loadPage(s, te.ppn);                
             }        
         }
 
@@ -115,7 +126,8 @@ public class VMProcess extends UserProcess {
                     this.handleExit(-1); //Exit of the process
                 }
 
-                TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance
+                TranslationEntry page = VMKernel.getEntry(this.getPID(), vpn); //PID... Remember the inheritance                
+
                 if (page == null || page.valid == false) {
                     //Is necessary load from GIPT
                     Lib.debug(dbgProcess, "PAGE FAULT with PID:" + this.getPID() + " and VPN: " + vpn + " = " + page);
