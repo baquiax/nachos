@@ -74,6 +74,17 @@ public class VMKernel extends UserKernel {
         return te;
     }
 
+    public static TranslationEntry setEntry(int pid, int vpn, int ppn) {
+        mutex.acquire();
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);        
+        TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, true, false);
+        newTe.ppn = ppn;
+        Lib.debug('a', "Set entry: " + pid + ", " + vpn + " TE:" + newTe);
+        globalIPT.put(key.toString(), newTe);
+        mutex.release();
+        return newTe;
+    }
+
     public static void unloadPage(int pid, int vpn) {
         mutex.acquire();        
         IPTKey key = new VMKernel.IPTKey(pid, vpn);        
@@ -91,9 +102,7 @@ public class VMKernel extends UserKernel {
         int ppn = UserKernel.allocPage();     
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
 
-        TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, false, false);        
-        newTe.used = true;     
-        newTe.valid = true;
+        TranslationEntry newTe = new TranslationEntry(vpn, ppn, true, false, true, false);
         globalIPT.put(key.toString(), newTe);
         
         TranslationEntry te = globalIPT.get(key.toString());
