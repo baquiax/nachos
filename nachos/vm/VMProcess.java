@@ -106,7 +106,7 @@ public class VMProcess extends UserProcess {
        
 	   switch (cause) {
            case Processor.exceptionTLBMiss:
-                Lib.debug(dbgProcess, "TBL Miss.");
+                Lib.debug(dbgProcess, "TLB Miss.");
                 //Search for value...                
                 int vaddr = Machine.processor().readRegister(Processor.regBadVAddr);
                 int vpn = vaddr/pageSize;
