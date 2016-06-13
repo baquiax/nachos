@@ -125,44 +125,48 @@ public class VMKernel extends UserKernel {
         return te;
     }
 
-    public Hashtable clockReplacement(String key, TranslationEntry value, Hashtable GIPT) {
+    public TranslationEntry clockReplacement(String key, TranslationEntry value) {
         mutex.acquire();
 
-        if (GIPT.isEmpty()) {
-            return GIPT;
+        if (globalIPT.isEmpty()) {
+            return null;
         }
 
-        Enumeration e = GIPT.keys();
+        Enumeration e = globalIPT.keys();
         String keyValue;
         TranslationEntry teValue;
         int countClock=0;
 
         while(e.hasMoreElements()) {
             keyValue = (String) e.nextElement();
-            teValue = (TranslationEntry) GIPT.get(keyValue);
+            teValue = (TranslationEntry) globalIPT.get(keyValue);
 
             if (teValue.used == true) {
-                teValue.used = false;
-                GIPT.put(keyValue,teValue);
-                countClock++;
+                if (teValue.dirty == false) {
+                    teValue.used = false;
+                    globalIPT.put(keyValue,teValue);
+                    countClock++;	   	
+                }
             } else {
-                GIPT.remove(keyValue);
-                GIPT.put(key, value);
-                break;
+                globalIPT.remove(keyValue);
+                globalIPT.put(key, value);
+                mutex.release();
+                return teValue;
             }
         }
         
-        if (countClock == GIPT.size()) {
-            Enumeration en = GIPT.keys();
+        if (countClock == globalIPT.size()) {
+            Enumeration en = globalIPT.keys();
             if (en.hasMoreElements()) {
                 String kv = (String) en.nextElement();
-                GIPT.remove(kv);
-                GIPT.put(key,value);
+                TranslationEntry teValue = (TranslationEntry) globalIPT.get(kv);
+                globalIPT.remove(kv);
+                globalIPT.put(key,value);
+                return teValue;
             }
         }
-
-        mutex.release();
-        return GIPT;
+        
+        return null;
     }
 
     // dummy variables to make javac smarter
