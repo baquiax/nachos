@@ -129,6 +129,7 @@ public class VMKernel extends UserKernel {
         mutex.acquire();
 
         if (globalIPT.isEmpty()) {
+            mutex.release();
             return null;
         }
 
@@ -162,10 +163,12 @@ public class VMKernel extends UserKernel {
                 TranslationEntry teValue = (TranslationEntry) globalIPT.get(kv);
                 globalIPT.remove(kv);
                 globalIPT.put(key,value);
+                mutex.release();
                 return teValue;
             }
         }
         
+        mutex.release();
         return null;
     }
 
