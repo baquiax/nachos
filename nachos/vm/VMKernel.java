@@ -137,6 +137,7 @@ public class VMKernel extends UserKernel {
         String keyValue;
         TranslationEntry teValue;
         int countClock=0;
+        int dirtyClock=0;
 
         while(e.hasMoreElements()) {
             keyValue = (String) e.nextElement();
@@ -147,6 +148,8 @@ public class VMKernel extends UserKernel {
                     teValue.used = false;
                     globalIPT.put(keyValue,teValue);
                     countClock++;	   	
+                } else {
+                    dirtyClock++;
                 }
             } else {
                 globalIPT.remove(keyValue);
@@ -156,7 +159,7 @@ public class VMKernel extends UserKernel {
             }
         }
         
-        if (countClock == globalIPT.size()) {
+        if (countClock >0 || dirtyClock>0) {
             Enumeration en = globalIPT.keys();
             if (en.hasMoreElements()) {
                 String kv = (String) en.nextElement();
