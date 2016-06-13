@@ -5,6 +5,7 @@ import nachos.threads.*;
 import nachos.userprog.*;
 import nachos.vm.*;
 import java.util.Hashtable;
+import java.util.Enumeration;
 
 /**
  * A kernel that can support multiple demand-paging user processes.
@@ -122,6 +123,46 @@ public class VMKernel extends UserKernel {
 
         mutex.release();
         return te;
+    }
+
+    public Hashtable clockReplacement(String key, TranslationEntry value, Hashtable GIPT) {
+        mutex.acquire();
+
+        if (GIPT.isEmpty()) {
+            return GIPT;
+        }
+
+        Enumeration e = GIPT.keys();
+        String keyValue;
+        TranslationEntry teValue;
+        int countClock=0;
+
+        while(e.hasMoreElements()) {
+            keyValue = (String) e.nextElement();
+            teValue = (TranslationEntry) GIPT.get(keyValue);
+
+            if (teValue.used == true) {
+                teValue.used = false;
+                GIPT.put(keyValue,teValue);
+                countClock++;
+            } else {
+                GIPT.remove(keyValue);
+                GIPT.put(key, value);
+                break;
+            }
+        }
+        
+        if (countClock == GIPT.size()) {
+            Enumeration en = GIPT.keys();
+            if (en.hasMoreElements()) {
+                String kv = (String) en.nextElement();
+                GIPT.remove(kv);
+                GIPT.put(key,value);
+            }
+        }
+
+        mutex.release();
+        return GIPT;
     }
 
     // dummy variables to make javac smarter
