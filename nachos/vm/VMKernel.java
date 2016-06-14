@@ -111,8 +111,8 @@ public class VMKernel extends UserKernel {
         TranslationEntry newTe = null;
         if (UserKernel.getAvailablePages() == 0) {
             //Save in swap because no more empty spaces in RAM
-	    int ppn = VMKernel.allocSwapTable();
-            TranslationEntry te = new TranslationEntry(pid, ppn, true, false, true, false);
+	    int sppn = VMKernel.allocSwapTable();
+            TranslationEntry te = new TranslationEntry(pid, sppn, true, false, true, false);
             swapTable.put(key.toString(), te);
             //swapFile.write();
         } else {
@@ -181,19 +181,32 @@ public class VMKernel extends UserKernel {
     private static int allocSwapTable() {
         int ppn = 0;
         
+        mutex.acquire();
+        
         if (swapPPN.size() == 0) {
             ppn++;
             swapPPN.add(ppn);
+            mutex.release();
             return ppn;
+        }
+        
+        if (swapPPN.indexOff(-1) != -1) {
+            count = swapPPN.indexOff(-1);
+            swapPPN.add(count, count);
+            mutex.release();
+            return count;
         }
         
         ppn = peekLast();
         swapTable.add(ppn);
+        mutex.release();
         return ppn;
     }
     
     private static void releaseSwapTable(int element) {
-        swapPPN.remove(element);
+        mutex.acquire();
+        swapPPN.add(element,-1);
+        mutex.release();
     }
     
     private static TranslationEntry getSwapTable(String key) {
