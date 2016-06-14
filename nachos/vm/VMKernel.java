@@ -213,6 +213,12 @@ public class VMKernel extends UserKernel {
         TranslationEntry te = (TranslationEntry) swapTable.get(key);
         return te;
     }
+    
+    public static void writeSwapFile(int bufferToWritePointer, int numberOfBytes) {
+        byte[] bytesToWrite = new byte[numberOfBytes];
+        this.readVirtualMemory(bufferToWritePointer, bytesToWrite, 0, numberOfBytes);
+        swapFile.write(bytesToWrite,0,numberOfBytes);
+    }
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
