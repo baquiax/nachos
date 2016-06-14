@@ -76,7 +76,7 @@ public class VMKernel extends UserKernel {
         Lib.debug(dbgVM, "Get entry: " + pid + ", " + vpn + " TE:" + te);
         if (te == null) {
             //Search in swapfile
-
+	    te = swapTable.getSwapTable(key.toString());
         }
         return te;
     }
@@ -111,7 +111,10 @@ public class VMKernel extends UserKernel {
         TranslationEntry newTe = null;
         if (UserKernel.getAvailablePages() == 0) {
             //Save in swap because no more empty spaces in RAM
-
+	    int ppn = VMKernel.allocSwapTable();
+            TranslationEntry te = new TranslationEntry(pid, ppn, true, false, true, false);
+            swapTable.put(key.toString(), te);
+            //swapFile.write();
         } else {
             int ppn = UserKernel.allocPage();
             newTe = new TranslationEntry(vpn, ppn, true, false, true, false);
@@ -174,6 +177,29 @@ public class VMKernel extends UserKernel {
         mutex.release();
         return null;
     }
+    
+    private static int allocSwapTable() {
+        int ppn = 0;
+        
+        if (swapPPN.size() == 0) {
+            ppn++;
+            swapPPN.add(ppn);
+            return ppn;
+        }
+        
+        ppn = peekLast();
+        swapTable.add(ppn);
+        return ppn;
+    }
+    
+    private static void releaseSwapTable(int element) {
+        swapPPN.remove(element);
+    }
+    
+    private static TranslationEntry getSwapTable(String key) {
+        TranslationEntry te = (TranslationEntry) swapTable.get(key);
+        return te;
+    }
 
     // dummy variables to make javac smarter
     private static VMProcess dummy1 = null;
@@ -182,8 +208,7 @@ public class VMKernel extends UserKernel {
     //My vars
     private static Lock mutex;
     private static OpenFile swapFile;
-    private static Hashtable<String, TranslationEntry> globalIPT = new Hashtable<String
-    , TranslationEntry> ();
+    private static Hashtable<String, TranslationEntry> globalIPT = new Hashtable<String, TranslationEntry> ();
     private static Hashtable<String, Integer>  swapTable = new Hashtable<String, Integer>();
-    
+    private static LinkedList<Integer> swapPPN = new LinkedList<Integer>();
 }
