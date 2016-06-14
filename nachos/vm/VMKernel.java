@@ -6,6 +6,7 @@ import nachos.userprog.*;
 import nachos.vm.*;
 import java.util.Hashtable;
 import java.util.Enumeration;
+import java.util.LinkedList;
 
 /**
  * A kernel that can support multiple demand-paging user processes.
@@ -76,7 +77,7 @@ public class VMKernel extends UserKernel {
         Lib.debug(dbgVM, "Get entry: " + pid + ", " + vpn + " TE:" + te);
         if (te == null) {
             //Search in swapfile
-	    te = swapTable.getSwapTable(key.toString());
+	       te = getSwapTable(key.toString());
         }
         return te;
     }
@@ -166,7 +167,7 @@ public class VMKernel extends UserKernel {
             Enumeration en = globalIPT.keys();
             if (en.hasMoreElements()) {
                 String kv = (String) en.nextElement();
-                TranslationEntry teValue = (TranslationEntry) globalIPT.get(kv);
+                teValue = (TranslationEntry) globalIPT.get(kv);
                 globalIPT.remove(kv);
                 globalIPT.put(key,value);
                 mutex.release();
@@ -185,20 +186,20 @@ public class VMKernel extends UserKernel {
         
         if (swapPPN.size() == 0) {
             ppn++;
-            swapPPN.add(ppn);
+            swapPPN.addLast(ppn);
             mutex.release();
             return ppn;
         }
         
-        if (swapPPN.indexOff(-1) != -1) {
-            count = swapPPN.indexOff(-1);
-            swapPPN.add(count, count);
+        if (swapPPN.indexOf(-1) != -1) {
+            ppn = swapPPN.indexOf(-1);
+            swapPPN.add(ppn, ppn);
             mutex.release();
-            return count;
+            return ppn;
         }
         
-        ppn = peekLast();
-        swapTable.add(ppn);
+        ppn = swapPPN.peekLast();
+        swapPPN.addLast(ppn);
         mutex.release();
         return ppn;
     }
@@ -216,7 +217,7 @@ public class VMKernel extends UserKernel {
     
     public static void writeSwapFile(int bufferToWritePointer, int numberOfBytes) {
         byte[] bytesToWrite = new byte[numberOfBytes];
-        this.readVirtualMemory(bufferToWritePointer, bytesToWrite, 0, numberOfBytes);
+        //UserProcess.readVirtualMemory(bufferToWritePointer, bytesToWrite, 0, numberOfBytes);
         swapFile.write(bytesToWrite,0,numberOfBytes);
     }
 
@@ -228,6 +229,6 @@ public class VMKernel extends UserKernel {
     private static Lock mutex;
     private static OpenFile swapFile;
     private static Hashtable<String, TranslationEntry> globalIPT = new Hashtable<String, TranslationEntry> ();
-    private static Hashtable<String, Integer>  swapTable = new Hashtable<String, Integer>();
+    private static Hashtable<String, TranslationEntry>  swapTable = new Hashtable<String, TranslationEntry>();
     private static LinkedList<Integer> swapPPN = new LinkedList<Integer>();
 }
