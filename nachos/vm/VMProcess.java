@@ -53,28 +53,53 @@ public class VMProcess extends UserProcess {
             return false;
         }*/
 
-        for(int i = 0; i < numPages; i++) {
+        ///for(int i = 0; i < numPages; i++) {
             //Now there are infinite pages using swap
             /*if (UserKernel.getAvailablePages() == 0) {
                 coff.close();
                 Lib.debug(dbgProcess, "\tinsufficient pages");
                 return false;
             }*/
-            TranslationEntry te = VMKernel.loadPage(this.getPID(), i);
-            pageTable[i] = te;
-        }
+            //TranslationEntry te = VMKernel.loadPage(this.getPID(), i);
+            //pageTable[i] = te;
+        //}
         
         //Load pages and load to GIPT        
         Lib.debug(dbgProcess, "Load sections.");
+        int pageIndex = 0;
         for (int i = 0; i < coff.getNumSections(); i++) {
             CoffSection section = coff.getSection(i);
             Lib.debug(dbgProcess, "Loading section:" + section.getName());
             for (int s = 0; s < section.getLength(); s++) {
                 int vpn = section.getFirstVPN() + s;
-                TranslationEntry te = VMKernel.getEntry(this.getPID(), vpn);
-                Lib.debug(dbgProcess, "Loading page with PID:" + this.getPID() + " and VPN: " + vpn + " = " + te);
-                te.readOnly = section.isReadOnly();
-                section.loadPage(s, te.ppn);                
+
+                TranslationEntry te = VMKernel.loadPage(this.getPID(), i);
+                if (te != null) {
+                    pageTable[pageIndex++] = te;
+                    te.vpn = vpn;
+                    Lib.debug(dbgProcess, "Loading page with PID:" + this.getPID() + " and VPN: " + vpn + " = " + te);
+                    te.readOnly = section.isReadOnly();
+                    section.loadPage(s, te.ppn);
+                } else {
+                    //Allow and write in swap file
+                    TranslationEntry teFromSwap = VMKernel.loadPageFromSwap(this.getPID(), i);
+                    if (teFromSwap != null) {
+                        //Writeeee!
+                        TranslationEntry newTe = new TranslationEntry(-1, -1, true, false, true, false);
+                        VMKernel.IPTKey key = new VMKernel.IPTKey(this.getPID(), vpn);
+                        TranslationEntry removed = VMKernel.clockReplacement(key.toString(), newTe);
+                        byte[] memory = Machine.processor().getMemory();
+                        byte[] page = new byte[pageSize];
+                        //Ref: public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)            
+                        System.arraycopy(memory, removed.ppn, page, 0, pageSize); //Copy chunk by chunk of memory.
+
+
+                        pageTable[removed.vpn] = newTe;                        
+                    } else {
+                        coff.close();
+                        return false;
+                    }
+                }                
             }        
         }
         

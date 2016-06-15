@@ -105,22 +105,29 @@ public class VMKernel extends UserKernel {
         mutex.release();
     }
 
+
+    public static TranslationEntry loadPageFromSwap(int pid, int vpn) {
+        mutex.acquire();              
+        IPTKey key = new VMKernel.IPTKey(pid, vpn);
+        TranslationEntry newTe = allocSwapTable(key);
+        TranslationEntry te = getSwapTable(key.toString());
+        Lib.debug(dbgVM, "Loaded page: " + pid + ", " + vpn + " TE:" + te);
+        mutex.release();
+        return te;
+    }
+
     public static TranslationEntry loadPage(int pid, int vpn) {
         mutex.acquire();              
         IPTKey key = new VMKernel.IPTKey(pid, vpn);
 
         TranslationEntry newTe = null;
-        if (UserKernel.getAvailablePages() == 0) {
-            //Save in swap because no more empty spaces in RAM
-	    int sppn = VMKernel.allocSwapTable();
-            TranslationEntry te = new TranslationEntry(pid, sppn, true, false, true, false);
-            swapTable.put(key.toString(), te);
-            //swapFile.write();
-        } else {
+        if (UserKernel.getAvailablePages() > 0) {
             int ppn = UserKernel.allocPage();
             newTe = new TranslationEntry(vpn, ppn, true, false, true, false);
             globalIPT.put(key.toString(), newTe);
-        }        
+        } else {
+            return null;
+        }
         
         TranslationEntry te = globalIPT.get(key.toString());
         Lib.debug(dbgVM, "Loaded page: " + pid + ", " + vpn + " TE:" + te);
@@ -129,7 +136,7 @@ public class VMKernel extends UserKernel {
         return te;
     }
 
-    public TranslationEntry clockReplacement(String key, TranslationEntry value) {
+    public static TranslationEntry clockReplacement(String key, TranslationEntry value) {
         mutex.acquire();
 
         if (globalIPT.isEmpty()) {
@@ -156,6 +163,7 @@ public class VMKernel extends UserKernel {
                     dirtyClock++;
                 }
             } else {
+                value.ppn = teValue.ppn;
                 globalIPT.remove(keyValue);
                 globalIPT.put(key, value);
                 mutex.release();
@@ -168,6 +176,7 @@ public class VMKernel extends UserKernel {
             if (en.hasMoreElements()) {
                 String kv = (String) en.nextElement();
                 teValue = (TranslationEntry) globalIPT.get(kv);
+                value.ppn = teValue.ppn;                
                 globalIPT.remove(kv);
                 globalIPT.put(key,value);
                 mutex.release();
@@ -179,29 +188,35 @@ public class VMKernel extends UserKernel {
         return null;
     }
     
-    private static int allocSwapTable() {
+    public static TranslationEntry allocSwapTable(IPTKey key) {
         int ppn = 0;
         
         mutex.acquire();
-        
+        TranslationEntry newTe = new TranslationEntry(key.getPID(), -1, true, false, true, false);;
         if (swapPPN.size() == 0) {
             ppn++;
             swapPPN.addLast(ppn);
             mutex.release();
-            return ppn;
+            newTe.ppn = ppn;
+            return newTe;
         }
         
         if (swapPPN.indexOf(-1) != -1) {
             ppn = swapPPN.indexOf(-1);
             swapPPN.add(ppn, ppn);
             mutex.release();
-            return ppn;
+            newTe.ppn = ppn;
+            return newTe;
         }
         
         ppn = swapPPN.peekLast();
         swapPPN.addLast(ppn);
         mutex.release();
-        return ppn;
+
+        TranslationEntry te = new TranslationEntry(key.getPID(), ppn, true, false, true, false);
+        swapTable.put(key.toString(), te);
+
+        return te;
     }
     
     private static void releaseSwapTable(int element) {
@@ -215,10 +230,9 @@ public class VMKernel extends UserKernel {
         return te;
     }
     
-    public static void writeSwapFile(int bufferToWritePointer, int numberOfBytes) {
-        byte[] bytesToWrite = new byte[numberOfBytes];
+    public static void writeSwapFile(TranslationEntry te, byte[] page) {        
         //UserProcess.readVirtualMemory(bufferToWritePointer, bytesToWrite, 0, numberOfBytes);
-        swapFile.write(bytesToWrite,0,numberOfBytes);
+        swapFile.write(page,0,page.length);
     }
 
     // dummy variables to make javac smarter
